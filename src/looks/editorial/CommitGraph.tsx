@@ -62,12 +62,12 @@ const CURVE = 26
 /* Wider than the lanes need: the slack is the gap between the graph and the
  * commit, which the lanes would otherwise sit right up against. */
 const GUTTER = 76
-/** How many commits are visible either side of the one in focus. Three on a
- *  screen with room for them; on a phone just one, so the deck is the previous
- *  commit, this one, and the next — a seven-slot deck is taller than the phone
- *  it is on, which puts the commit in focus somewhere off the screen. */
-const REACH = 3
-const REACH_NARROW = 1
+/** The fewest commits the deck will ever show. Below three it stops reading as
+ *  a deck at all. */
+const SLOTS_MIN = 3
+/** Kept clear under the deck for the controls and for whatever the commit in
+ *  focus has to say for itself. */
+const RESERVE = 190
 /** How far the focused commit comes forward, and how far each ring back from it
  *  falls away. */
 const ZOOM = 1.06
@@ -147,23 +147,58 @@ function Curve({
   )
 }
 
-export function CommitGraph({ commits }: { commits: Commit[] }) {
+export function CommitGraph({
+  commits,
+  header,
+}: {
+  commits: Commit[]
+  header?: ReactNode
+}) {
   const [index, setIndex] = useState(0)
   const deck = useRef<HTMLDivElement>(null)
   const track = useRef<HTMLDivElement>(null)
+  const pinned = useRef<HTMLDivElement>(null)
   const last = commits.length - 1
 
   // The focused commit opens in place, and everything below it moves down by
   // however tall its detail turns out to be. Measured rather than assumed: one
   // role has three bullets and a stack, another has none at all, and a fixed
   // allowance would leave a hole under the short ones.
-  const [reach, setReach] = useState(REACH)
+  // The deck shows as many commits as the pinned screen has room for, rather
+  // than a number picked in advance: too few and the screen has a hole in it,
+  // too many and the deck runs off the bottom of the phone it is on.
+  const headBox = useRef<HTMLDivElement>(null)
+  const [slots, setSlots] = useState(SLOTS_MIN)
   useEffect(() => {
-    const mq = window.matchMedia('(max-width: 640px)')
-    const read = () => setReach(mq.matches ? REACH_NARROW : REACH)
-    read()
-    mq.addEventListener('change', read)
-    return () => mq.removeEventListener('change', read)
+    const fit = () => {
+      const room =
+        window.innerHeight - PIN_TOP - (headBox.current?.offsetHeight ?? 0) - RESERVE
+      setSlots(
+        Math.max(SLOTS_MIN, Math.min(commits.length, Math.floor(room / STEP) || SLOTS_MIN)),
+      )
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    if (headBox.current) ro.observe(headBox.current)
+    window.addEventListener('resize', fit)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  }, [commits.length])
+
+  // The track is exactly as long as the deck plus the scrolling it has to do.
+  // Guessing an allowance for the tallest possible deck left a screen of empty
+  // page under the last commit; measuring leaves none.
+  const [boxH, setBoxH] = useState(0)
+  useEffect(() => {
+    const el = pinned.current
+    if (!el) return
+    const measure = () => setBoxH(el.offsetHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
   const detail = useRef<HTMLDivElement>(null)
@@ -187,7 +222,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
    * length from the deck's own height would feed the opened detail back into
    * the sums that decide which commit is open.
    */
-  const step = reach === REACH_NARROW ? 96 : 120
+  const step = slots <= SLOTS_MIN ? 96 : 120
   const span = (commits.length - 1) * step
 
   // The scroll position inside the track is the only thing that picks the
@@ -281,7 +316,8 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
   })()
 
-  const VISIBLE = reach * 2 + 1
+  const VISIBLE = slots
+  const reach = Math.floor((slots - 1) / 2)
   // The deck keeps the focused commit centred, but never at the price of empty
   // slots: at the ends it stops moving and the focus travels within the window
   // instead. Three blank rows above the newest commit is not a deck, it is a
@@ -294,8 +330,17 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     // stays there while the page scrolls the rest of the way down, which is
     // what turns page scroll into deck movement without taking the scroll away
     // from the browser.
-    <div ref={track} style={{ height: span + STEP * VISIBLE + 260 }}>
-      <div className="sticky" style={{ top: PIN_TOP }}>
+    <div ref={track} style={{ height: span + boxH }}>
+      {/* The pinned box fills the screen and centres the deck inside itself.
+          Sized to the deck alone it was much shorter than a phone's viewport,
+          and the rest of the track showed through underneath it as a screenful
+          of nothing. */}
+      <div
+        ref={pinned}
+        className="sticky flex flex-col justify-center gap-6"
+        style={{ top: PIN_TOP, minHeight: `calc(100svh - ${PIN_TOP}px)` }}
+      >
+        {header && <div ref={headBox}>{header}</div>}
       <Reveal>
         <div
           ref={deck}

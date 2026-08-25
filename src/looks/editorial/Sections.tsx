@@ -250,32 +250,43 @@ export function Experience() {
     if (commit) commit.ref = ref
   }
 
-  return (
-    <Section
-      id="experience"
-      n="02"
-      label={t(ui.sections.experience)}
-      heading={t(ui.sections.experienceHeading)}
-    >
+  const legend = (
+    <>
+      <div className="grid gap-2 md:grid-cols-[7rem_1fr] md:gap-8">
+        <div className="eyebrow flex items-center gap-2 text-dim md:pt-2.5">
+          <span className="text-p-ink">02</span>
+          <span aria-hidden="true" className="h-px w-4 bg-line md:hidden" />
+          <span>{t(ui.sections.experience)}</span>
+        </div>
+        <h2 className="display text-[2rem] text-text sm:text-[2.5rem]">
+          {t(ui.sections.experienceHeading)}
+        </h2>
+      </div>
+      <div className="rule mt-5" />
       {/* A legend, because three lanes is one more than a reader will infer.
           Each branch name is printed in its own lane's colour. */}
-      <Reveal>
-        <ul className="mb-7 flex flex-wrap gap-x-5 gap-y-2">
-          {(['wip', 'main', 'edu'] as const).map((branch) => (
-            <li key={branch} className="meta flex items-center gap-2 text-dim">
-              <span
-                aria-hidden="true"
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ background: BRANCH_COLOR[branch] }}
-              />
-              <span style={{ color: BRANCH_COLOR[branch] }}>{branch}</span>
-              <span>{t(ui.branches[branch])}</span>
-            </li>
-          ))}
-        </ul>
-      </Reveal>
-      <CommitGraph commits={commits} />
-    </Section>
+      <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+        {(['wip', 'main', 'edu'] as const).map((branch) => (
+          <li key={branch} className="meta flex items-center gap-2 text-dim">
+            <span
+              aria-hidden="true"
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ background: BRANCH_COLOR[branch] }}
+            />
+            <span style={{ color: BRANCH_COLOR[branch] }}>{branch}</span>
+            <span>{t(ui.branches[branch])}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+
+  // No <Section> wrapper: the heading, the legend and the deck are pinned
+  // together as one screen, so they have to live inside the graph's own track.
+  return (
+    <section id="experience" className="px-5 sm:px-8">
+      <CommitGraph commits={commits} header={legend} />
+    </section>
   )
 }
 
