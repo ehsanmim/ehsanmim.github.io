@@ -67,7 +67,7 @@ const GUTTER = 76
 const SLOTS_MIN = 3
 /** Kept clear under the deck for the controls and for whatever the commit in
  *  focus has to say for itself. */
-const RESERVE = 190
+const RESERVE = 130
 /** How far the focused commit comes forward, and how far each ring back from it
  *  falls away. */
 const ZOOM = 1.06
@@ -501,7 +501,10 @@ export function CommitGraph({
         </div>
       </Reveal>
 
-      <div className="mt-4">
+      {/* Pushed to the foot of the pinned screen. Left directly under the deck
+          it dumped whatever height the screen had spare between itself and the
+          next section, which read as a hole rather than as layout. */}
+      <div className="mt-auto pt-4">
         <div className="flex items-center gap-3">
           <Step label="↑" onClick={() => move(-1)} disabled={index === 0} />
           <Step label="↓" onClick={() => move(1)} disabled={index === last} />
