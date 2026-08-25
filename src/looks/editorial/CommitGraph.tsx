@@ -72,9 +72,9 @@ const RESERVE = 190
  *  falls away. */
 const ZOOM = 1.06
 const FALLOFF = 0.09
-/** Where the pinned deck sits while the page scrolls through its track — clear
- *  of the sticky masthead. */
-const PIN_TOP = 92
+/** Fallback for where the pinned deck sits, until the masthead has been
+ *  measured. */
+const PIN_FALLBACK = 92
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -158,6 +158,20 @@ export function CommitGraph({
   const deck = useRef<HTMLDivElement>(null)
   const track = useRef<HTMLDivElement>(null)
   const pinned = useRef<HTMLDivElement>(null)
+
+  // The masthead is sticky and its height depends on the type inside it, so it
+  // is measured rather than assumed. Guessing it low puts the section's heading
+  // underneath the nav.
+  const [pinTop, setPinTop] = useState(PIN_FALLBACK)
+  useEffect(() => {
+    const bar = document.querySelector('header')
+    if (!bar) return
+    const measure = () => setPinTop(bar.offsetHeight + 12)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
   const last = commits.length - 1
 
   // The focused commit opens in place, and everything below it moves down by
@@ -172,7 +186,7 @@ export function CommitGraph({
   useEffect(() => {
     const fit = () => {
       const room =
-        window.innerHeight - PIN_TOP - (headBox.current?.offsetHeight ?? 0) - RESERVE
+        window.innerHeight - pinTop - (headBox.current?.offsetHeight ?? 0) - RESERVE
       setSlots(
         Math.max(SLOTS_MIN, Math.min(commits.length, Math.floor(room / STEP) || SLOTS_MIN)),
       )
@@ -185,7 +199,7 @@ export function CommitGraph({
       ro.disconnect()
       window.removeEventListener('resize', fit)
     }
-  }, [commits.length])
+  }, [commits.length, pinTop])
 
   // The track is exactly as long as the deck plus the scrolling it has to do.
   // Guessing an allowance for the tallest possible deck left a screen of empty
@@ -235,7 +249,7 @@ export function CommitGraph({
     const read = () => {
       raf = 0
       const top = el.getBoundingClientRect().top
-      const travelled = Math.min(span, Math.max(0, PIN_TOP - top))
+      const travelled = Math.min(span, Math.max(0, pinTop - top))
       setIndex(Math.round((travelled / span) * (commits.length - 1)))
     }
     const onScroll = () => {
@@ -250,7 +264,7 @@ export function CommitGraph({
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
     }
-  }, [span, commits.length])
+  }, [span, commits.length, pinTop])
 
   /** Move by scrolling, so the buttons and the keys land where the wheel would. */
   const move = useCallback(
@@ -259,11 +273,11 @@ export function CommitGraph({
       if (!el) return
       const to = Math.min(last, Math.max(0, index + by))
       window.scrollTo({
-        top: el.getBoundingClientRect().top + window.scrollY - PIN_TOP + to * step,
+        top: el.getBoundingClientRect().top + window.scrollY - pinTop + to * step,
         behavior: 'smooth',
       })
     },
-    [index, last, step],
+    [index, last, step, pinTop],
   )
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -331,14 +345,16 @@ export function CommitGraph({
     // what turns page scroll into deck movement without taking the scroll away
     // from the browser.
     <div ref={track} style={{ height: span + boxH }}>
-      {/* The pinned box fills the screen and centres the deck inside itself.
-          Sized to the deck alone it was much shorter than a phone's viewport,
-          and the rest of the track showed through underneath it as a screenful
-          of nothing. */}
+      {/* The pinned box fills the screen — sized to the deck alone it was much
+          shorter than a phone's viewport, and the rest of the track showed
+          through underneath it as a screenful of nothing.
+          Its contents are anchored to the top, not centred: the deck's height
+          changes every time a commit opens its detail, and centred content
+          would slide the heading up and down on every step. */}
       <div
         ref={pinned}
-        className="sticky flex flex-col justify-center gap-6"
-        style={{ top: PIN_TOP, minHeight: `calc(100svh - ${PIN_TOP}px)` }}
+        className="sticky flex flex-col justify-start gap-6 pt-2"
+        style={{ top: pinTop, minHeight: `calc(100svh - ${pinTop}px)` }}
       >
         {header && <div ref={headBox}>{header}</div>}
       <Reveal>

@@ -49,7 +49,9 @@
 
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 6.75rem;
+      /* Clears the sticky masthead — name row plus the section index — so a jump
+     * from the nav does not land the heading underneath it. */
+    scroll-padding-top: 9rem;
     -webkit-text-size-adjust: 100%;
   }
 
