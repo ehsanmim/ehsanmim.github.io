@@ -7,10 +7,16 @@ import { Dot, Tag } from './visuals'
  * `git log --graph` as a deck.
  *
  * One commit is in focus at a time, its neighbours sit above and below it,
- * scaled back and faded, and everything further away is gone. Rolling the wheel
- * over it — or dragging, or pressing a cursor key — moves the deck by exactly
- * one commit rather than scrolling the page. At either end the page takes the
- * scroll back, so the reader is never trapped in it.
+ * scaled back and faded, and everything further away is gone.
+ *
+ * The deck is *pinned* rather than scroll-jacked: it sticks to the top of the
+ * viewport while the page scrolls through a track as long as the history, and
+ * the scroll position inside that track picks the commit. Nothing is
+ * preventDefault-ed, so the page keeps its own inertia, its own rubber band and
+ * its own scrollbar — which is the only way this behaves on a phone, where the
+ * browser claims a touch gesture before script gets a say and cancelling it
+ * mid-flight is what makes the page jump. Scroll past the track and the deck
+ * simply unpins.
  *
  * Three lanes, and they mean what their names mean. `main` carries the finished
  * roles. `wip` carries whatever is still running — branched off main and
@@ -56,16 +62,19 @@ const CURVE = 26
 /* Wider than the lanes need: the slack is the gap between the graph and the
  * commit, which the lanes would otherwise sit right up against. */
 const GUTTER = 76
-/** How many commits are visible either side of the one in focus. */
-const REACH = 3
+/** The fewest commits the deck will ever show. Below three it stops reading as
+ *  a deck at all. */
+const SLOTS_MIN = 3
+/** Kept clear under the deck for the controls and for whatever the commit in
+ *  focus has to say for itself. */
+const RESERVE = 130
 /** How far the focused commit comes forward, and how far each ring back from it
  *  falls away. */
 const ZOOM = 1.06
 const FALLOFF = 0.09
-/** Wheel travel that counts as "one commit". */
-const THRESHOLD = 60
-/** Quiet time before the deck will accept another turn. */
-const COOLDOWN = 260
+/** Fallback for where the pinned deck sits, until the masthead has been
+ *  measured. */
+const PIN_FALLBACK = 92
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -138,15 +147,74 @@ function Curve({
   )
 }
 
-export function CommitGraph({ commits }: { commits: Commit[] }) {
+export function CommitGraph({
+  commits,
+  header,
+}: {
+  commits: Commit[]
+  header?: ReactNode
+}) {
   const [index, setIndex] = useState(0)
   const deck = useRef<HTMLDivElement>(null)
+  const track = useRef<HTMLDivElement>(null)
+  const pinned = useRef<HTMLDivElement>(null)
+
+  // The masthead is sticky and its height depends on the type inside it, so it
+  // is measured rather than assumed. Guessing it low puts the section's heading
+  // underneath the nav.
+  const [pinTop, setPinTop] = useState(PIN_FALLBACK)
+  useEffect(() => {
+    const bar = document.querySelector('header')
+    if (!bar) return
+    const measure = () => setPinTop(bar.offsetHeight + 12)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
   const last = commits.length - 1
 
   // The focused commit opens in place, and everything below it moves down by
   // however tall its detail turns out to be. Measured rather than assumed: one
   // role has three bullets and a stack, another has none at all, and a fixed
   // allowance would leave a hole under the short ones.
+  // The deck shows as many commits as the pinned screen has room for, rather
+  // than a number picked in advance: too few and the screen has a hole in it,
+  // too many and the deck runs off the bottom of the phone it is on.
+  const headBox = useRef<HTMLDivElement>(null)
+  const [slots, setSlots] = useState(SLOTS_MIN)
+  useEffect(() => {
+    const fit = () => {
+      const room =
+        window.innerHeight - pinTop - (headBox.current?.offsetHeight ?? 0) - RESERVE
+      setSlots(
+        Math.max(SLOTS_MIN, Math.min(commits.length, Math.floor(room / STEP) || SLOTS_MIN)),
+      )
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    if (headBox.current) ro.observe(headBox.current)
+    window.addEventListener('resize', fit)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  }, [commits.length, pinTop])
+
+  // The track is exactly as long as the deck plus the scrolling it has to do.
+  // Guessing an allowance for the tallest possible deck left a screen of empty
+  // page under the last commit; measuring leaves none.
+  const [boxH, setBoxH] = useState(0)
+  useEffect(() => {
+    const el = pinned.current
+    if (!el) return
+    const measure = () => setBoxH(el.offsetHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const detail = useRef<HTMLDivElement>(null)
   const [detailH, setDetailH] = useState(0)
   useEffect(() => {
@@ -162,92 +230,55 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return () => ro.disconnect()
   }, [index, commits])
 
-  const move = useCallback(
-    (by: number) => {
-      let moved = false
-      setIndex((i) => {
-        const next = Math.min(last, Math.max(0, i + by))
-        moved = next !== i
-        return next
-      })
-      return moved
-    },
-    [last],
-  )
-
   /**
-   * While the deck is the thing on screen, the page's scroll belongs to it —
-   * wherever the pointer happens to be. It hands the scroll back the moment the
-   * deck runs out of commits in the direction you are going, so the page moves
-   * on as normal past either end. A section that swallows the scroll and will
-   * not give it back is a trap, not an effect.
+   * How far the page scrolls per commit, and how much room the pinned deck is
+   * given inside its track. Both are constants on purpose: deriving the track's
+   * length from the deck's own height would feed the opened detail back into
+   * the sums that decide which commit is open.
    */
+  const step = slots <= SLOTS_MIN ? 96 : 120
+  const span = (commits.length - 1) * step
+
+  // The scroll position inside the track is the only thing that picks the
+  // commit — there is no second source of truth to fall out of step with it.
   useEffect(() => {
-    const el = deck.current
+    const el = track.current
     if (!el) return
 
-    // The deck is "the thing on screen" while it crosses the middle of the
-    // viewport. Measured per event rather than observed, because it is the
-    // position at the moment of the scroll that decides.
-    const holding = () => {
-      const r = el.getBoundingClientRect()
-      const h = window.innerHeight
-      return r.top < h * 0.62 && r.bottom > h * 0.38
+    let raf = 0
+    const read = () => {
+      raf = 0
+      const top = el.getBoundingClientRect().top
+      const travelled = Math.min(span, Math.max(0, pinTop - top))
+      setIndex(Math.round((travelled / span) * (commits.length - 1)))
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(read)
     }
 
-    let acc = 0
-    let locked = false
-    let quiet: ReturnType<typeof setTimeout> | undefined
-
-    const settle = () => {
-      if (quiet) clearTimeout(quiet)
-      quiet = setTimeout(() => {
-        locked = false
-        acc = 0
-      }, COOLDOWN)
-    }
-
-    const turn = (delta: number, cancel: () => void) => {
-      const room = delta > 0 ? index < last : index > 0
-      if (!room || !holding()) return
-      // The page must not scroll underneath a deck that is about to move.
-      cancel()
-      settle()
-      if (locked) return
-      acc += delta
-      if (Math.abs(acc) < THRESHOLD) return
-      acc = 0
-      if (move(Math.sign(delta))) locked = true
-    }
-
-    const onWheel = (e: WheelEvent) => {
-      turn(e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY, () => e.preventDefault())
-    }
-
-    let from: number | null = null
-    const onTouchStart = (e: TouchEvent) => {
-      from = e.touches[0]?.clientY ?? null
-      acc = 0
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      const y = e.touches[0]?.clientY
-      if (y === undefined || from === null) return
-      turn(from - y, () => e.preventDefault())
-      from = y
-    }
-
-    // On the window, not the deck: the scroll is the deck's while the deck is
-    // what you are looking at, whether or not the pointer is over it.
-    window.addEventListener('wheel', onWheel, { passive: false })
-    window.addEventListener('touchstart', onTouchStart, { passive: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    read()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
     return () => {
-      if (quiet) clearTimeout(quiet)
-      window.removeEventListener('wheel', onWheel)
-      window.removeEventListener('touchstart', onTouchStart)
-      window.removeEventListener('touchmove', onTouchMove)
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
     }
-  }, [index, last, move])
+  }, [span, commits.length, pinTop])
+
+  /** Move by scrolling, so the buttons and the keys land where the wheel would. */
+  const move = useCallback(
+    (by: number) => {
+      const el = track.current
+      if (!el) return
+      const to = Math.min(last, Math.max(0, index + by))
+      window.scrollTo({
+        top: el.getBoundingClientRect().top + window.scrollY - pinTop + to * step,
+        behavior: 'smooth',
+      })
+    },
+    [index, last, step, pinTop],
+  )
 
   const onKey = (e: React.KeyboardEvent) => {
     const by = { ArrowDown: 1, PageDown: 1, ArrowUp: -1, PageUp: -1 }[e.key]
@@ -256,10 +287,10 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
       move(by)
     } else if (e.key === 'Home') {
       e.preventDefault()
-      setIndex(0)
+      move(-commits.length)
     } else if (e.key === 'End') {
       e.preventDefault()
-      setIndex(last)
+      move(commits.length)
     }
   }
 
@@ -299,16 +330,33 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
   })()
 
-  const VISIBLE = REACH * 2 + 1
+  const VISIBLE = slots
+  const reach = Math.floor((slots - 1) / 2)
   // The deck keeps the focused commit centred, but never at the price of empty
   // slots: at the ends it stops moving and the focus travels within the window
   // instead. Three blank rows above the newest commit is not a deck, it is a
   // hole.
-  const start = Math.min(Math.max(index - REACH, 0), Math.max(0, commits.length - VISIBLE))
+  const start = Math.min(Math.max(index - reach, 0), Math.max(0, commits.length - VISIBLE))
   const height = STEP * VISIBLE + detailH
 
   return (
-    <div>
+    // The track is as long as the history. The deck sticks to the top of it and
+    // stays there while the page scrolls the rest of the way down, which is
+    // what turns page scroll into deck movement without taking the scroll away
+    // from the browser.
+    <div ref={track} style={{ height: span + boxH }}>
+      {/* The pinned box fills the screen — sized to the deck alone it was much
+          shorter than a phone's viewport, and the rest of the track showed
+          through underneath it as a screenful of nothing.
+          Its contents are anchored to the top, not centred: the deck's height
+          changes every time a commit opens its detail, and centred content
+          would slide the heading up and down on every step. */}
+      <div
+        ref={pinned}
+        className="sticky flex flex-col justify-start gap-6 pt-2"
+        style={{ top: pinTop, minHeight: `calc(100svh - ${pinTop}px)` }}
+      >
+        {header && <div ref={headBox}>{header}</div>}
       <Reveal>
         <div
           ref={deck}
@@ -341,6 +389,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
                 <div
                   key={commit.id}
                   id={`commit-${i}`}
+                  data-slot={i}
                   role="option"
                   aria-selected={off === 0}
                   className="absolute inset-x-0 grid"
@@ -426,19 +475,36 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
             })}
           </div>
 
-          {/* Softens the top and bottom edges so commits leave the deck rather
-              than being cut off by it. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background: `linear-gradient(var(--color-bg), transparent ${STEP * 0.9}px, transparent calc(100% - ${STEP * 0.9}px), var(--color-bg))`,
-            }}
-          />
+          {/* Softens an edge only where the deck actually continues past it.
+              Clamped at either end there is nothing beyond the frame, and a
+              fade there would just be dimming the first commit's own date. */}
+          {start > 0 && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0"
+              style={{
+                height: STEP * 0.9,
+                background: 'linear-gradient(var(--color-bg), transparent)',
+              }}
+            />
+          )}
+          {start + VISIBLE < commits.length && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0"
+              style={{
+                height: STEP * 0.9,
+                background: 'linear-gradient(transparent, var(--color-bg))',
+              }}
+            />
+          )}
         </div>
       </Reveal>
 
-      <div className="mt-4">
+      {/* Pushed to the foot of the pinned screen. Left directly under the deck
+          it dumped whatever height the screen had spare between itself and the
+          next section, which read as a hole rather than as layout. */}
+      <div className="mt-auto pt-4">
         <div className="flex items-center gap-3">
           <Step label="↑" onClick={() => move(-1)} disabled={index === 0} />
           <Step label="↓" onClick={() => move(1)} disabled={index === last} />
@@ -446,6 +512,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
             {index + 1} / {commits.length}
           </span>
         </div>
+      </div>
       </div>
     </div>
   )
