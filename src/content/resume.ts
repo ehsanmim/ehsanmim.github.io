@@ -386,11 +386,13 @@ export const ui = {
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
   themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
-  /** Sits above the commit graph, in place of a chart legend. */
-  graphNote: {
-    de: 'Laufendes auf wip, abgeschlossene Stationen auf main, Ausbildung auf edu.',
-    en: 'Ongoing on wip, finished roles on main, studies on edu.',
-  } satisfies T,
+  /** The commit graph's legend: what each lane holds. Keyed by branch name,
+   *  which is printed as-is — a branch is not translated. */
+  branches: {
+    wip: { de: 'Laufend', en: 'Ongoing' } satisfies T,
+    main: { de: 'Abgeschlossene Stationen', en: 'Finished roles' } satisfies T,
+    edu: { de: 'Ausbildung', en: 'Studies' } satisfies T,
+  },
   present: { de: 'heute', en: 'present' } satisfies T,
   rights: { de: 'Alle Rechte vorbehalten.', en: 'All rights reserved.' } satisfies T,
 }

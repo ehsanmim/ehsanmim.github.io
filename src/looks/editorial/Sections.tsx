@@ -200,6 +200,13 @@ export function About() {
 
 /* ── experience: the history as a commit graph ────────────────────────────── */
 
+/** The graph's own lane colours, for the legend that stands above it. */
+const BRANCH_COLOR = {
+  wip: 'var(--color-wip)',
+  main: 'var(--color-p-ink)',
+  edu: 'var(--color-edu)',
+}
+
 export function Experience() {
   const { t, lang } = useLang()
   const present = t(ui.present)
@@ -250,11 +257,22 @@ export function Experience() {
       label={t(ui.sections.experience)}
       heading={t(ui.sections.experienceHeading)}
     >
+      {/* A legend, because three lanes is one more than a reader will infer.
+          Each branch name is printed in its own lane's colour. */}
       <Reveal>
-        <p className="meta mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-dim">
-          <span className="text-p-ink">git log --graph</span>
-          <span>{t(ui.graphNote)}</span>
-        </p>
+        <ul className="mb-7 flex flex-wrap gap-x-5 gap-y-2">
+          {(['wip', 'main', 'edu'] as const).map((branch) => (
+            <li key={branch} className="meta flex items-center gap-2 text-dim">
+              <span
+                aria-hidden="true"
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ background: BRANCH_COLOR[branch] }}
+              />
+              <span style={{ color: BRANCH_COLOR[branch] }}>{branch}</span>
+              <span>{t(ui.branches[branch])}</span>
+            </li>
+          ))}
+        </ul>
       </Reveal>
       <CommitGraph commits={commits} />
     </Section>
