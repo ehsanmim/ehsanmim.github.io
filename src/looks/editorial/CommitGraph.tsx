@@ -46,6 +46,11 @@ const CURVE = 24
 const GUTTER = 76
 /** The space each row leaves under itself — `pb-6`. */
 const ROW_GAP = 24
+/** How far the lit commit comes forward, and how far the rest fall back. Both
+ *  the row and the panel behind it scale by ZOOM, about the same point, so the
+ *  two never come apart. */
+const ZOOM = 1.07
+const RECEDE = 0.965
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -169,11 +174,16 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     if (!row) return
 
     const measure = () => {
-      const o = ol.getBoundingClientRect()
-      const r = row.getBoundingClientRect()
+      // offsetTop/offsetHeight rather than getBoundingClientRect: the lit row
+      // is scaled, and a painted rect would hand the panel a size that grew
+      // along with it. Layout values ignore transforms.
+      let top = 0
+      for (let el: HTMLElement | null = row; el && el !== ol; el = el.offsetParent as HTMLElement | null) {
+        top += el.offsetTop
+      }
       // Less the gap the row carries below it, so the panel hugs the commit
       // rather than the space after it. Kept in step with `pb-6` on the row.
-      setBox({ top: r.top - o.top, height: r.height - ROW_GAP })
+      setBox({ top, height: row.offsetHeight - ROW_GAP })
     }
     measure()
     window.addEventListener('resize', measure)
@@ -228,13 +238,14 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl"
         style={{
-          transform: `translateY(${box?.top ?? 0}px)`,
+          transformOrigin: 'left center',
+          transform: `translateY(${box?.top ?? 0}px) scale(${ZOOM})`,
           height: box?.height ?? 0,
           opacity: active && box ? 1 : 0,
           background: `color-mix(in oklab, ${activeLane} 9%, var(--color-surface))`,
-          boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${activeLane} 22%, transparent)`,
+          boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${activeLane} 22%, transparent), 0 14px 34px -18px color-mix(in oklab, ${activeLane} 60%, transparent)`,
           transition:
-            'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), height 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease, background-color 0.38s ease',
+            'transform 0.44s cubic-bezier(0.34, 1.42, 0.5, 1), height 0.44s cubic-bezier(0.34, 1.42, 0.5, 1), opacity 0.25s ease, background-color 0.44s ease, box-shadow 0.44s ease',
         }}
       />
       {commits.map((commit, i) => {
@@ -280,6 +291,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
               <Row
                 commit={commit}
                 open={i === 0}
+                lit={active === commit.id}
                 dim={active !== null && active !== commit.id}
                 onActive={(on) => setHovered(on ? commit.id : null)}
               />
@@ -313,8 +325,8 @@ function Node({
         left: LANE_X[lane] - 5.5,
         top: NODE_Y - 5.5,
         transformOrigin: 'center',
-        transform: active ? 'scale(1.3)' : undefined,
-        opacity: dim ? 0.5 : 1,
+        transform: active ? 'scale(1.5)' : dim ? `scale(${RECEDE})` : undefined,
+        opacity: dim ? 0.42 : 1,
       }}
     >
       <span
@@ -339,11 +351,13 @@ function Node({
 function Row({
   commit,
   open,
+  lit,
   dim,
   onActive,
 }: {
   commit: Commit
   open: boolean
+  lit: boolean
   dim: boolean
   onActive: (on: boolean) => void
 }) {
@@ -425,9 +439,12 @@ function Row({
     // ones around it, small enough that the type does not go soft.
     <div
       className="commit pb-6"
-      // Everything but the lit commit settles back. The panel does the moving;
-      // the rows only change how present they are.
-      style={{ opacity: dim ? 0.5 : 1 }}
+      // The lit commit comes forward a little; everything else settles back.
+      style={{
+        transform: lit ? `scale(${ZOOM})` : dim ? `scale(${RECEDE})` : undefined,
+        opacity: dim ? 0.42 : 1,
+        zIndex: lit ? 20 : undefined,
+      }}
       {...on}
     >
       {foldable ? (

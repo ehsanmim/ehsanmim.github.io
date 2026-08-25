@@ -60,6 +60,10 @@
   }
 
   body {
+    /* `clip`, not `hidden`: it stops a scaled-up commit from ever producing a
+     * horizontal scrollbar, without turning the body into a scroll container
+     * and breaking the sticky masthead. */
+    overflow-x: clip;
     background-color: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-sans);
@@ -129,11 +133,13 @@
    * point is that it is calm. */
   .commit {
     transform-origin: left center;
-    will-change: transform, opacity, filter;
+    will-change: transform, opacity;
+    /* The scale overshoots and settles — a spring, not a ramp. That tiny
+     * arrival past the target is the whole difference between "it got bigger"
+     * and "it came forward". */
     transition:
-      transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.36s ease,
-      filter 0.36s ease;
+      transform 0.44s cubic-bezier(0.34, 1.42, 0.5, 1),
+      opacity 0.34s ease;
   }
 
   @media (prefers-reduced-motion: reduce) {
