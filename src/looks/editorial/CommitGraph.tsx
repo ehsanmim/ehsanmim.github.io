@@ -56,8 +56,12 @@ const CURVE = 26
 /* Wider than the lanes need: the slack is the gap between the graph and the
  * commit, which the lanes would otherwise sit right up against. */
 const GUTTER = 76
-/** How many commits are visible either side of the one in focus. */
+/** How many commits are visible either side of the one in focus. Three on a
+ *  screen with room for them; on a phone just one, so the deck is the previous
+ *  commit, this one, and the next — a seven-slot deck is taller than the phone
+ *  it is on, which puts the commit in focus somewhere off the screen. */
 const REACH = 3
+const REACH_NARROW = 1
 /** How far the focused commit comes forward, and how far each ring back from it
  *  falls away. */
 const ZOOM = 1.06
@@ -147,6 +151,15 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
   // however tall its detail turns out to be. Measured rather than assumed: one
   // role has three bullets and a stack, another has none at all, and a fixed
   // allowance would leave a hole under the short ones.
+  const [reach, setReach] = useState(REACH)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const read = () => setReach(mq.matches ? REACH_NARROW : REACH)
+    read()
+    mq.addEventListener('change', read)
+    return () => mq.removeEventListener('change', read)
+  }, [])
+
   const detail = useRef<HTMLDivElement>(null)
   const [detailH, setDetailH] = useState(0)
   useEffect(() => {
@@ -249,6 +262,29 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     }
   }, [index, last, move])
 
+  // Bring the commit in focus to the middle of the screen if it has drifted
+  // off it. On a phone the deck is most of the viewport, so a commit two steps
+  // in can sit under the fold — moving the deck to it is no use if the reader
+  // cannot see where it moved to.
+  useEffect(() => {
+    const el = deck.current?.querySelector<HTMLElement>(`[data-slot="${index}"]`)
+    if (!el) return
+    // Two frames: the slot is mid-transition on the first one.
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect()
+        // The header, not the opened detail — it is the commit's own line that
+        // should land in the middle, not the middle of everything it says.
+        const centre = r.top + Math.min(r.height, STEP) / 2
+        const drift = centre - window.innerHeight / 2
+        if (Math.abs(drift) > window.innerHeight * 0.2) {
+          window.scrollBy({ top: drift, behavior: 'smooth' })
+        }
+      }),
+    )
+    return () => cancelAnimationFrame(raf)
+  }, [index])
+
   const onKey = (e: React.KeyboardEvent) => {
     const by = { ArrowDown: 1, PageDown: 1, ArrowUp: -1, PageUp: -1 }[e.key]
     if (by) {
@@ -299,12 +335,12 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
   })()
 
-  const VISIBLE = REACH * 2 + 1
+  const VISIBLE = reach * 2 + 1
   // The deck keeps the focused commit centred, but never at the price of empty
   // slots: at the ends it stops moving and the focus travels within the window
   // instead. Three blank rows above the newest commit is not a deck, it is a
   // hole.
-  const start = Math.min(Math.max(index - REACH, 0), Math.max(0, commits.length - VISIBLE))
+  const start = Math.min(Math.max(index - reach, 0), Math.max(0, commits.length - VISIBLE))
   const height = STEP * VISIBLE + detailH
 
   return (
@@ -341,6 +377,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
                 <div
                   key={commit.id}
                   id={`commit-${i}`}
+                  data-slot={i}
                   role="option"
                   aria-selected={off === 0}
                   className="absolute inset-x-0 grid"
@@ -426,15 +463,29 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
             })}
           </div>
 
-          {/* Softens the top and bottom edges so commits leave the deck rather
-              than being cut off by it. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background: `linear-gradient(var(--color-bg), transparent ${STEP * 0.9}px, transparent calc(100% - ${STEP * 0.9}px), var(--color-bg))`,
-            }}
-          />
+          {/* Softens an edge only where the deck actually continues past it.
+              Clamped at either end there is nothing beyond the frame, and a
+              fade there would just be dimming the first commit's own date. */}
+          {start > 0 && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 top-0"
+              style={{
+                height: STEP * 0.9,
+                background: 'linear-gradient(var(--color-bg), transparent)',
+              }}
+            />
+          )}
+          {start + VISIBLE < commits.length && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0"
+              style={{
+                height: STEP * 0.9,
+                background: 'linear-gradient(transparent, var(--color-bg))',
+              }}
+            />
+          )}
         </div>
       </Reveal>
 
