@@ -176,14 +176,24 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
   )
 
   /**
-   * The deck takes the wheel only while it still has somewhere to go. Once it
-   * is at either end the event is left alone and the page scrolls on past it —
-   * a section that swallows the scroll and will not give it back is a trap, not
-   * an effect.
+   * While the deck is the thing on screen, the page's scroll belongs to it —
+   * wherever the pointer happens to be. It hands the scroll back the moment the
+   * deck runs out of commits in the direction you are going, so the page moves
+   * on as normal past either end. A section that swallows the scroll and will
+   * not give it back is a trap, not an effect.
    */
   useEffect(() => {
     const el = deck.current
     if (!el) return
+
+    // The deck is "the thing on screen" while it crosses the middle of the
+    // viewport. Measured per event rather than observed, because it is the
+    // position at the moment of the scroll that decides.
+    const holding = () => {
+      const r = el.getBoundingClientRect()
+      const h = window.innerHeight
+      return r.top < h * 0.62 && r.bottom > h * 0.38
+    }
 
     let acc = 0
     let locked = false
@@ -199,7 +209,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
 
     const turn = (delta: number, cancel: () => void) => {
       const room = delta > 0 ? index < last : index > 0
-      if (!room) return
+      if (!room || !holding()) return
       // The page must not scroll underneath a deck that is about to move.
       cancel()
       settle()
@@ -226,14 +236,16 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
       from = y
     }
 
-    el.addEventListener('wheel', onWheel, { passive: false })
-    el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    // On the window, not the deck: the scroll is the deck's while the deck is
+    // what you are looking at, whether or not the pointer is over it.
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
     return () => {
       if (quiet) clearTimeout(quiet)
-      el.removeEventListener('wheel', onWheel)
-      el.removeEventListener('touchstart', onTouchStart)
-      el.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
     }
   }, [index, last, move])
 
@@ -287,7 +299,13 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
   })()
 
-  const height = STEP * (REACH * 2 + 1) + detailH
+  const VISIBLE = REACH * 2 + 1
+  // The deck keeps the focused commit centred, but never at the price of empty
+  // slots: at the ends it stops moving and the focus travels within the window
+  // instead. Three blank rows above the newest commit is not a deck, it is a
+  // hole.
+  const start = Math.min(Math.max(index - REACH, 0), Math.max(0, commits.length - VISIBLE))
+  const height = STEP * VISIBLE + detailH
 
   return (
     <div>
@@ -306,7 +324,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
           <div
             className="absolute inset-x-0 top-0"
             style={{
-              transform: `translateY(${REACH * STEP - index * STEP}px)`,
+              transform: `translateY(${-start * STEP}px)`,
               transition: 'transform 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
           >
@@ -362,8 +380,12 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
                   <div
                     className="flex min-w-0 flex-col"
                     style={{
-                      // The text is what recedes, not the graph beside it.
-                      opacity: away > REACH ? 0 : 1 - away * 0.26,
+                      // The text is what recedes, not the graph beside it — and
+                      // never past legibility while it is inside the window.
+                      opacity:
+                        i < start || i >= start + VISIBLE
+                          ? 0
+                          : Math.max(0.34, 1 - away * 0.22),
                       transition: 'opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                   >
