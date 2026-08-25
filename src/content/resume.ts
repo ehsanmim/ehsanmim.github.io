@@ -383,13 +383,16 @@ export const ui = {
     viewWork: { de: 'Werdegang ansehen', en: 'See the history' } satisfies T,
   },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
+  /** The cue at the foot of a section, which is also where the scroll goes. */
+  next: { de: 'Weiter', en: 'Next' } satisfies T,
+  prev: { de: 'Zurück', en: 'Previous' } satisfies T,
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
   themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
   /** Sits above the commit graph, in place of a chart legend. */
   graphNote: {
-    de: 'Beruf auf dem Hauptstrang, Studium auf dem Zweig.',
-    en: 'Career on the trunk, studies on the branch.',
+    de: 'Laufendes auf wip, abgeschlossene Stationen auf main, Ausbildung auf edu.',
+    en: 'Ongoing on wip, finished roles on main, studies on edu.',
   } satisfies T,
   present: { de: 'heute', en: 'present' } satisfies T,
   rights: { de: 'Alle Rechte vorbehalten.', en: 'All rights reserved.' } satisfies T,

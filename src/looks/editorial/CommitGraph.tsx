@@ -5,20 +5,24 @@ import { Dot, Tag } from './visuals'
 /**
  * `git log --graph`, drawn in HTML.
  *
- * Two lanes: the career runs down the trunk, the studies run on a branch that
- * merges into it at the newest entry and forks off at the oldest — so the years
- * spent studying alongside a job read as exactly that, rather than as a second
- * list somewhere further down the page.
+ * Three lanes, and they mean what their names mean. `main` carries the finished
+ * roles. `wip` carries whatever is still running — it is branched off main and
+ * deliberately never merged, because that work is not done. `edu` carries the
+ * studying, merging into main at its newest entry and forking off it at the
+ * oldest, so the years spent studying alongside a job read as exactly that
+ * rather than as a second list further down the page.
  *
- * The gutter is absolutely positioned hairlines plus two small SVG curves at
- * the fork and the merge. No chart library, and nothing distorts when a row
- * grows because the reader unfolded it.
+ * The gutter is absolutely positioned hairlines plus one small SVG curve per
+ * junction. No chart library, and nothing distorts when a row grows because the
+ * reader unfolded it.
  */
+
+/** 0 = main, 1 = wip, 2 = edu. */
+export type Lane = 0 | 1 | 2
 
 export type Commit = {
   id: string
-  /** 0 = the career trunk, 1 = the studies branch. */
-  lane: 0 | 1
+  lane: Lane
   when: string
   title: string
   /** Company, or institution. */
@@ -31,14 +35,31 @@ export type Commit = {
   head?: boolean
 }
 
-const LANE_X = [13, 33]
+const LANE_X = [12, 28, 44]
+const LANE_VAR = ['--color-p', '--color-wip', '--color-edu']
 /** Where a node sits inside its row — level with the first line of the title. */
 const NODE_Y = 21
-/** How far a fork or merge takes to travel between lanes. */
+/** How far a fork takes to travel between lanes. */
 const CURVE = 24
-const GUTTER = 46
+const GUTTER = 56
 
-const laneColor = (lane: number) => (lane === 0 ? 'var(--color-p)' : 'var(--color-edu)')
+const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
+
+/** A point in the graph: a row, and a height within that row. */
+type Anchor = { row: number; y: number }
+type Span = { from: Anchor; to: Anchor }
+
+const earlier = (a: Anchor, b: Anchor) => (a.row - b.row || a.y - b.y) <= 0 ? a : b
+const later = (a: Anchor, b: Anchor) => (a.row - b.row || a.y - b.y) >= 0 ? a : b
+
+/** The piece of a lane that falls inside one row, if any. */
+function segment(span: Span | null, i: number) {
+  if (!span || i < span.from.row || i > span.to.row) return null
+  return {
+    from: i === span.from.row ? span.from.y : 0,
+    to: i === span.to.row ? span.to.y : null,
+  }
+}
 
 /** A vertical hairline. `to === null` means "carry on to the row's bottom". */
 function Line({ lane, from, to }: { lane: number; from: number; to: number | null }) {
@@ -51,28 +72,39 @@ function Line({ lane, from, to }: { lane: number; from: number; to: number | nul
         top: from,
         ...(to === null ? { bottom: 0 } : { height: Math.max(0, to - from) }),
         background: laneColor(lane),
-        opacity: lane === 0 ? 0.5 : 0.45,
+        opacity: 0.45,
       }}
     />
   )
 }
 
-/** The diagonal that joins the branch to the trunk, in either direction. */
-function Curve({ dir, top }: { dir: 'merge' | 'fork'; top: number }) {
-  const [a, b] = dir === 'merge' ? [LANE_X[0], LANE_X[1]] : [LANE_X[1], LANE_X[0]]
-  const h = dir === 'merge' ? NODE_Y : CURVE
+/** The diagonal that joins two lanes, drawn in the colour of the branch. */
+function Curve({
+  a,
+  b,
+  top,
+  height,
+  tint,
+}: {
+  a: number
+  b: number
+  top: number
+  height: number
+  tint: number
+}) {
+  const [x1, x2] = [LANE_X[a], LANE_X[b]]
   return (
     <svg
       aria-hidden="true"
       className="absolute"
       width={GUTTER}
-      height={h}
+      height={height}
       style={{ left: 0, top }}
     >
       <path
-        d={`M ${a} 0 C ${a} ${h * 0.55}, ${b} ${h * 0.45}, ${b} ${h}`}
+        d={`M ${x1} 0 C ${x1} ${height * 0.55}, ${x2} ${height * 0.45}, ${x2} ${height}`}
         fill="none"
-        stroke={laneColor(dir === 'merge' ? 1 : 1)}
+        stroke={laneColor(tint)}
         strokeWidth="1"
         opacity="0.45"
       />
@@ -81,46 +113,70 @@ function Curve({ dir, top }: { dir: 'merge' | 'fork'; top: number }) {
 }
 
 export function CommitGraph({ commits }: { commits: Commit[] }) {
-  // Which rows each lane runs through. The trunk carries on past its own last
-  // commit down to wherever the branch forks off it — that junction is the
-  // point the whole history starts from.
-  const trunkFirst = commits.findIndex((c) => c.lane === 0)
-  const trunkLast = commits.reduce((last, c, i) => (c.lane === 0 ? i : last), -1)
-  const branchFirst = commits.findIndex((c) => c.lane === 1)
-  const branchLast = commits.reduce((last, c, i) => (c.lane === 1 ? i : last), -1)
-  const hasBranch = branchFirst !== -1
-  // Where the fork is drawn, and therefore how far the trunk has to reach.
-  const forkRow = hasBranch ? branchLast : -1
-  const trunkEnd = Math.max(trunkLast, forkRow)
+  const rowsOf = (lane: Lane) =>
+    commits.reduce<number[]>((rows, c, i) => (c.lane === lane ? [...rows, i] : rows), [])
+  const main = rowsOf(0)
+  const wip = rowsOf(1)
+  const edu = rowsOf(2)
+
+  /** A branch runs from its newest node to its oldest. */
+  const branchSpan = (rows: number[]): Span | null =>
+    rows.length
+      ? { from: { row: rows[0], y: NODE_Y }, to: { row: rows[rows.length - 1], y: NODE_Y } }
+      : null
+
+  const wipSpan = branchSpan(wip)
+  const eduSpan = branchSpan(edu)
+
+  // wip is never merged, so it only touches main where it forks off, below its
+  // oldest commit. edu touches main twice: it merges in above its newest and
+  // forks off below its oldest.
+  const wipFork = wip.length ? { row: wip[wip.length - 1], y: NODE_Y + CURVE } : null
+  const eduMerge = edu.length && edu[0] > 0 ? { row: edu[0], y: 0 } : null
+  const eduFork = edu.length ? { row: edu[edu.length - 1], y: NODE_Y + CURVE } : null
+
+  // main has to reach every junction its branches make with it, whether or not
+  // it has a commit of its own that far up or down.
+  const mainSpan: Span | null = (() => {
+    const tops = [
+      ...(main.length ? [{ row: main[0], y: NODE_Y }] : []),
+      ...(wipFork ? [wipFork] : []),
+      ...(eduMerge ? [eduMerge] : []),
+    ]
+    const bottoms = [
+      ...(main.length ? [{ row: main[main.length - 1], y: NODE_Y }] : []),
+      ...(wipFork ? [wipFork] : []),
+      ...(eduFork ? [eduFork] : []),
+    ]
+    if (!tops.length || !bottoms.length) return null
+    return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
+  })()
 
   return (
     <ol className="relative">
       {commits.map((commit, i) => {
-        const trunkOn = i >= trunkFirst && i <= trunkEnd
-        const branchOn = hasBranch && i >= branchFirst && i <= branchLast
-        // On the row where the trunk stops, it stops at its own node — unless
-        // the branch rejoins below, in which case it runs down to meet it.
-        const trunkTo =
-          i === trunkEnd ? (i === forkRow ? NODE_Y + CURVE : NODE_Y) : null
+        const lanes = [
+          { lane: 0, seg: segment(mainSpan, i) },
+          { lane: 1, seg: segment(wipSpan, i) },
+          { lane: 2, seg: segment(eduSpan, i) },
+        ]
 
         return (
           <Reveal as="li" key={commit.id} delay={Math.min(i, 6) * 55}>
             <div className="grid" style={{ gridTemplateColumns: `${GUTTER}px 1fr` }}>
               <div className="relative">
-                {trunkOn && (
-                  <Line lane={0} from={i === trunkFirst ? NODE_Y : 0} to={trunkTo} />
+                {lanes.map(({ lane, seg }) =>
+                  seg ? <Line key={lane} lane={lane} from={seg.from} to={seg.to} /> : null,
                 )}
-                {branchOn && (
-                  <Line
-                    lane={1}
-                    from={i === branchFirst ? NODE_Y : 0}
-                    to={i === branchLast ? NODE_Y : null}
-                  />
+                {wipFork?.row === i && (
+                  <Curve a={1} b={0} top={NODE_Y} height={CURVE} tint={1} />
                 )}
-                {hasBranch && i === branchFirst && branchFirst > 0 && (
-                  <Curve dir="merge" top={0} />
+                {eduMerge?.row === i && (
+                  <Curve a={0} b={2} top={0} height={NODE_Y} tint={2} />
                 )}
-                {hasBranch && i === branchLast && <Curve dir="fork" top={NODE_Y} />}
+                {eduFork?.row === i && (
+                  <Curve a={2} b={0} top={NODE_Y} height={CURVE} tint={2} />
+                )}
                 <Node lane={commit.lane} head={commit.head} />
               </div>
 
@@ -143,14 +199,20 @@ function Node({ lane, head }: { lane: number; head?: boolean }) {
       style={{ left: LANE_X[lane] - 5.5, top: NODE_Y - 5.5 }}
     >
       <span
-        className={`relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg ${
-          head ? 'pulse' : ''
-        }`}
+        className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg"
         style={{
           background: head ? laneColor(lane) : 'var(--color-bg)',
           boxShadow: `inset 0 0 0 2px ${laneColor(lane)}`,
         }}
-      />
+      >
+        {/* The ring that marks the work still in progress. */}
+        {head && (
+          <span
+            className="pulse absolute inset-0 rounded-full"
+            style={{ ['--pulse-color' as string]: laneColor(lane) }}
+          />
+        )}
+      </span>
     </span>
   )
 }
@@ -170,7 +232,7 @@ function Row({ commit, open }: { commit: Commit; open: boolean }) {
             className="rounded-full border px-1.5 py-px text-[0.625rem]"
             style={{
               borderColor: `color-mix(in oklab, ${laneColor(commit.lane)} 55%, transparent)`,
-              color: commit.lane === 0 ? 'var(--color-p-ink)' : 'var(--color-edu)',
+              color: laneColor(commit.lane),
             }}
           >
             {commit.ref}
@@ -203,9 +265,7 @@ function Row({ commit, open }: { commit: Commit; open: boolean }) {
     </>
   )
 
-  const shell = `-mx-2 rounded-lg px-2 transition-colors ${
-    hover ? 'bg-p-wash/70' : ''
-  }`
+  const shell = `-mx-2 rounded-lg px-2 transition-colors ${hover ? 'bg-p-wash/70' : ''}`
 
   const detail = (
     <div className="space-y-3 pt-1 pb-4 pl-px">

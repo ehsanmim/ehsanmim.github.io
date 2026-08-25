@@ -16,6 +16,7 @@
   --color-p: #38bdf8;
   --color-p-ink: #0369a1;
   --color-p-wash: #eff9ff;
+  --color-wip: #15803d;
   --color-edu: #b06f2b;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -42,6 +43,7 @@
     --color-p: #3b82f6;
     --color-p-ink: #7cb0ff;
     --color-p-wash: #14203a;
+    --color-wip: #4ade80;
     --color-edu: #d9a05b;
   }
 
@@ -127,7 +129,7 @@
     position: absolute;
     inset: 0;
     border-radius: 9999px;
-    background: var(--color-p-ink);
+    background: var(--pulse-color, var(--color-p-ink));
     animation: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 

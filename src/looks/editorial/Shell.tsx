@@ -1,19 +1,35 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { about, contact, profile, projects, ui } from '../../content/resume'
 import { useLang } from '../../lib/lang-context'
+import { useScrollChain } from '../../lib/scroll-chain'
 import { useTheme } from '../../lib/theme'
 import { LangControl, ThemeControl } from './Controls'
 import { About, Contact, Experience, Footer, Hero, Projects, Skills } from './Sections'
 
 type Panel = { id: string; label: string; node: ReactNode }
 
+/** Which section is open, and which edge the reader arrives at it from. */
+type View = { id: string; land: 'top' | 'bottom' | 'smooth-top' }
+
 /**
  * The masthead and the section index.
  *
- * One section is open at a time, and switching does not scroll — a CV read on a
- * phone as a single document ran past four screens, and the end of a document
- * nobody scrolls to has not been read. The index is the navigation; the reader
- * picks the section instead of paging through everything to reach it.
+ * One section is open at a time — a CV read on a phone as a single document ran
+ * past four screens, and the end of a document nobody scrolls to has not been
+ * read. The index is the navigation; the reader picks the section instead of
+ * paging through everything to reach it.
+ *
+ * Scrolling still works the way a single document does, though: pushing past
+ * the bottom of a section opens the next one at its top, and pushing past the
+ * top opens the previous one at its bottom — so scrolling back up carries on
+ * reading rather than skipping a screen.
  */
 export function Shell() {
   const { lang, toggle, t } = useLang()
@@ -21,7 +37,7 @@ export function Shell() {
 
   const panels = useMemo<Panel[]>(
     () => [
-      { id: 'top', label: t(ui.tabs.start), node: <Hero onNavigate={(id) => select(id)} /> },
+      { id: 'top', label: t(ui.tabs.start), node: <Hero /> },
       { id: 'about', label: t(about.eyebrow), node: <About /> },
       { id: 'experience', label: t(ui.sections.experience), node: <Experience /> },
       { id: 'skills', label: t(ui.sections.skills), node: <Skills /> },
@@ -37,32 +53,81 @@ export function Shell() {
 
   const known = useCallback((id: string) => panels.some((p) => p.id === id), [panels])
 
-  // A shared link like /#experience has to open that section, not the start.
-  const [active, setActive] = useState(() => {
+  // The open section, and the edge it should be entered from — one value,
+  // because the two are decided together and applied together.
+  const [view, setView] = useState<View>(() => {
+    // A shared link like /#experience has to open that section, not the start.
     const hash = window.location.hash.slice(1)
-    return hash && ['about', 'experience', 'skills', 'projects', 'contact'].includes(hash)
-      ? hash
-      : 'top'
+    const deep = ['about', 'experience', 'skills', 'projects', 'contact']
+    return { id: deep.includes(hash) ? hash : 'top', land: 'top' }
   })
+  const active = view.id
 
   useEffect(() => {
     const onHash = () => {
       const hash = window.location.hash.slice(1)
-      if (hash && known(hash)) setActive(hash)
+      if (hash && known(hash)) setView({ id: hash, land: 'smooth-top' })
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [known])
 
-  function select(id: string) {
-    setActive(id)
-    // replaceState, not a hash assignment: the URL should stay shareable
-    // without stacking a history entry for every section the reader opens.
-    history.replaceState(null, '', id === 'top' ? './' : `#${id}`)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
+  const select = useCallback(
+    (id: string, land: View['land'] = 'smooth-top') => {
+      if (id === active) return
+      setView({ id, land })
+      // replaceState, not a hash assignment: the URL should stay shareable
+      // without stacking a history entry for every section the reader opens.
+      history.replaceState(null, '', id === 'top' ? './' : `#${id}`)
+    },
+    [active],
+  )
 
-  const current = panels.find((p) => p.id === active) ?? panels[0]
+  // The new section is entered from the chosen edge, once it has rendered —
+  // its height is not a real number until then.
+  useLayoutEffect(() => {
+    const land = view.land
+    if (land === 'smooth-top') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    // Instant, not smooth: the reader is mid-gesture, and animating the jump
+    // would land them somewhere they did not aim at. Two frames — one for the
+    // commit, one for layout — before the bottom is a real number.
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        window.scrollTo({
+          top:
+            land === 'bottom'
+              ? document.documentElement.scrollHeight - window.innerHeight
+              : 0,
+          behavior: 'auto',
+        })
+      }),
+    )
+    return () => cancelAnimationFrame(raf)
+  }, [view])
+
+  const index = panels.findIndex((p) => p.id === active)
+  const current = panels[index] ?? panels[0]
+  const next = panels[index + 1]
+  const prev = panels[index - 1]
+
+  // Forward lands at the top of the next section, backward at the foot of the
+  // previous one — the position the reader would have been at had it all been
+  // one page.
+  useScrollChain({
+    onNext: () => {
+      if (!next) return false
+      select(next.id, 'top')
+      return true
+    },
+    onPrev: () => {
+      if (!prev) return false
+      select(prev.id, 'bottom')
+      return true
+    },
+  })
 
   return (
     <>
@@ -131,6 +196,29 @@ export function Shell() {
         {/* Keyed so each section mounts fresh — the reveals replay and the
             unfolded commits reset. */}
         <div key={current.id}>{current.node}</div>
+
+        {/* Says what is below, and is the thing scrolling past the bottom
+            reaches — the chaining is invisible otherwise. */}
+        {next && (
+          <div className="px-5 pb-12 sm:px-8">
+            <button
+              type="button"
+              onClick={() => select(next.id, 'top')}
+              className="group flex w-full items-center gap-4 border-t border-line pt-5 text-left"
+            >
+              <span className="eyebrow text-dim">{t(ui.next)}</span>
+              <span className="display text-[1.375rem] text-text transition-colors group-hover:text-p-ink">
+                {next.label}
+              </span>
+              <span
+                aria-hidden="true"
+                className="eyebrow ml-auto text-p-ink transition-transform group-hover:translate-y-0.5"
+              >
+                ↓
+              </span>
+            </button>
+          </div>
+        )}
       </main>
       <Footer />
     </>

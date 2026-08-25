@@ -13,7 +13,7 @@ import {
 import type { ReactNode } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
-import { CommitGraph, type Commit } from './CommitGraph'
+import { CommitGraph, type Commit, type Lane } from './CommitGraph'
 import { Dot, Points, SkillRow, Tag } from './visuals'
 
 /* ── the editorial furniture ──────────────────────────────────────────────── */
@@ -72,7 +72,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 
 /* ── start ────────────────────────────────────────────────────────────────── */
 
-export function Hero({ onNavigate }: { onNavigate: (id: string) => void }) {
+export function Hero() {
   const { t } = useLang()
 
   return (
@@ -122,13 +122,14 @@ export function Hero({ onNavigate }: { onNavigate: (id: string) => void }) {
               →
             </span>
           </a>
-          <button
-            type="button"
-            onClick={() => onNavigate('experience')}
+          {/* An ordinary hash link: the shell listens for the hash and opens
+              that section, so this works before hydration and in a new tab. */}
+          <a
+            href="#experience"
             className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm text-text transition-colors hover:border-p-ink/50 hover:text-p-ink"
           >
             {t(ui.hero.viewWork)}
-          </button>
+          </a>
         </div>
       </Reveal>
 
@@ -203,11 +204,12 @@ export function Experience() {
   const { t, lang } = useLang()
   const present = t(ui.present)
 
-  // Jobs on the trunk, studies on the branch, newest first — `git log` order.
+  // Finished roles on main, whatever is still running on wip, studies on edu —
+  // newest first, in `git log` order.
   const commits: (Commit & { sort: string })[] = [
     ...experience.map((job) => ({
       id: `${job.company}-${job.start ?? 'undated'}`,
-      lane: 0 as const,
+      lane: (job.end === null ? 1 : 0) as Lane,
       sort: job.start ?? job.end ?? '0000-00',
       when: period(job, lang, present),
       title: t(job.role),
@@ -219,7 +221,7 @@ export function Experience() {
     })),
     ...education.map((e) => ({
       id: `edu-${e.what.de}`,
-      lane: 1 as const,
+      lane: 2 as Lane,
       sort: e.start ?? e.end ?? '0000-00',
       when: period(e, lang, present),
       title: t(e.what),
@@ -228,12 +230,18 @@ export function Experience() {
     })),
   ].sort((a, b) => b.sort.localeCompare(a.sort))
 
-  // The refs go on the newest entry of each lane, the way `git log` prints them.
-  const firstOf = (lane: 0 | 1) => commits.find((c) => c.lane === lane)
-  const trunkHead = firstOf(0)
-  const branchHead = firstOf(1)
-  if (trunkHead) trunkHead.ref = 'HEAD → main'
-  if (branchHead) branchHead.ref = 'edu'
+  // The refs go on the newest entry of each lane, the way `git log` prints
+  // them. HEAD is on wip, because that is the work that is still going.
+  const firstOf = (lane: Lane) => commits.find((c) => c.lane === lane)
+  const named: [Lane, string][] = [
+    [1, 'HEAD → wip'],
+    [0, 'main'],
+    [2, 'edu'],
+  ]
+  for (const [lane, ref] of named) {
+    const commit = firstOf(lane)
+    if (commit) commit.ref = ref
+  }
 
   return (
     <Section
