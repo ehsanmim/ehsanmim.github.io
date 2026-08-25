@@ -13,7 +13,7 @@ import {
 import type { ReactNode } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
-import { CommitGraph, type Commit } from './CommitGraph'
+import { CommitGraph, type Commit, type Lane } from './CommitGraph'
 import { Dot, Points, SkillRow, Tag } from './visuals'
 
 /* ── the editorial furniture ──────────────────────────────────────────────── */
@@ -72,7 +72,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
 
 /* ── start ────────────────────────────────────────────────────────────────── */
 
-export function Hero({ onNavigate }: { onNavigate: (id: string) => void }) {
+export function Hero() {
   const { t } = useLang()
 
   return (
@@ -122,13 +122,14 @@ export function Hero({ onNavigate }: { onNavigate: (id: string) => void }) {
               →
             </span>
           </a>
-          <button
-            type="button"
-            onClick={() => onNavigate('experience')}
+          {/* An ordinary hash link: the shell listens for the hash and opens
+              that section, so this works before hydration and in a new tab. */}
+          <a
+            href="#experience"
             className="inline-flex items-center gap-2 rounded-full border border-line px-5 py-2.5 text-sm text-text transition-colors hover:border-p-ink/50 hover:text-p-ink"
           >
             {t(ui.hero.viewWork)}
-          </button>
+          </a>
         </div>
       </Reveal>
 
@@ -199,15 +200,23 @@ export function About() {
 
 /* ── experience: the history as a commit graph ────────────────────────────── */
 
+/** The graph's own lane colours, for the legend that stands above it. */
+const BRANCH_COLOR = {
+  wip: 'var(--color-wip)',
+  main: 'var(--color-p-ink)',
+  edu: 'var(--color-edu)',
+}
+
 export function Experience() {
   const { t, lang } = useLang()
   const present = t(ui.present)
 
-  // Jobs on the trunk, studies on the branch, newest first — `git log` order.
+  // Finished roles on main, whatever is still running on wip, studies on edu —
+  // newest first, in `git log` order.
   const commits: (Commit & { sort: string })[] = [
     ...experience.map((job) => ({
       id: `${job.company}-${job.start ?? 'undated'}`,
-      lane: 0 as const,
+      lane: (job.end === null ? 1 : 0) as Lane,
       sort: job.start ?? job.end ?? '0000-00',
       when: period(job, lang, present),
       title: t(job.role),
@@ -219,7 +228,7 @@ export function Experience() {
     })),
     ...education.map((e) => ({
       id: `edu-${e.what.de}`,
-      lane: 1 as const,
+      lane: 2 as Lane,
       sort: e.start ?? e.end ?? '0000-00',
       when: period(e, lang, present),
       title: t(e.what),
@@ -228,12 +237,18 @@ export function Experience() {
     })),
   ].sort((a, b) => b.sort.localeCompare(a.sort))
 
-  // The refs go on the newest entry of each lane, the way `git log` prints them.
-  const firstOf = (lane: 0 | 1) => commits.find((c) => c.lane === lane)
-  const trunkHead = firstOf(0)
-  const branchHead = firstOf(1)
-  if (trunkHead) trunkHead.ref = 'HEAD → main'
-  if (branchHead) branchHead.ref = 'edu'
+  // The refs go on the newest entry of each lane, the way `git log` prints
+  // them. HEAD is on wip, because that is the work that is still going.
+  const firstOf = (lane: Lane) => commits.find((c) => c.lane === lane)
+  const named: [Lane, string][] = [
+    [1, 'HEAD → wip'],
+    [0, 'main'],
+    [2, 'edu'],
+  ]
+  for (const [lane, ref] of named) {
+    const commit = firstOf(lane)
+    if (commit) commit.ref = ref
+  }
 
   return (
     <Section
@@ -242,11 +257,22 @@ export function Experience() {
       label={t(ui.sections.experience)}
       heading={t(ui.sections.experienceHeading)}
     >
+      {/* A legend, because three lanes is one more than a reader will infer.
+          Each branch name is printed in its own lane's colour. */}
       <Reveal>
-        <p className="meta mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-dim">
-          <span className="text-p-ink">git log --graph</span>
-          <span>{t(ui.graphNote)}</span>
-        </p>
+        <ul className="mb-7 flex flex-wrap gap-x-5 gap-y-2">
+          {(['wip', 'main', 'edu'] as const).map((branch) => (
+            <li key={branch} className="meta flex items-center gap-2 text-dim">
+              <span
+                aria-hidden="true"
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ background: BRANCH_COLOR[branch] }}
+              />
+              <span style={{ color: BRANCH_COLOR[branch] }}>{branch}</span>
+              <span>{t(ui.branches[branch])}</span>
+            </li>
+          ))}
+        </ul>
       </Reveal>
       <CommitGraph commits={commits} />
     </Section>

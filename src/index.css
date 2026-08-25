@@ -16,6 +16,7 @@
   --color-p: #38bdf8;
   --color-p-ink: #0369a1;
   --color-p-wash: #eff9ff;
+  --color-wip: #15803d;
   --color-edu: #b06f2b;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -42,12 +43,13 @@
     --color-p: #3b82f6;
     --color-p-ink: #7cb0ff;
     --color-p-wash: #14203a;
+    --color-wip: #4ade80;
     --color-edu: #d9a05b;
   }
 
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 6rem;
+    scroll-padding-top: 6.75rem;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -58,6 +60,10 @@
   }
 
   body {
+    /* `clip`, not `hidden`: it stops a scaled-up commit from ever producing a
+     * horizontal scrollbar, without turning the body into a scroll container
+     * and breaking the sticky masthead. */
+    overflow-x: clip;
     background-color: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-sans);
@@ -121,13 +127,178 @@
     text-decoration-color: var(--color-p-ink);
   }
 
+  /* A commit in the graph. Hovering lifts the one under the pointer a little
+   * and settles the rest back — the transform is on the text column only, so
+   * the lanes it sits beside never move. Slow and eased, because the whole
+   * point is that it is calm. */
+  /* The deck: one commit in focus, its neighbours either side of it, and the
+   * page's scroll borrowed only while it still has somewhere to go. */
+  .deck {
+    touch-action: pan-x;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .deck:focus-visible {
+    outline: 2px solid var(--color-p-ink);
+    outline-offset: 4px;
+  }
+
+  .deck-card,
+  .deck-node {
+    transform-origin: left center;
+    will-change: transform;
+    /* Overshoots and settles — a spring, not a ramp. That arrival past the
+     * target is the difference between "it got bigger" and "it came forward". */
+    transition:
+      transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1),
+      opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .deck-node {
+    transform-origin: center;
+  }
+
+  /* The kind mark, springing in on whichever commit has the deck. */
+  .deck-kind {
+    animation: deck-kind 0.42s cubic-bezier(0.32, 1.5, 0.5, 1) both;
+  }
+
+  @keyframes deck-kind {
+    from {
+      opacity: 0;
+      transform: scale(0.4) rotate(-12deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* The focused commit's detail, arriving after the deck has settled. */
+  .deck-detail {
+    animation: deck-detail 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes deck-detail {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .deck-card,
+    .deck-node {
+      transition: none;
+    }
+
+    .deck-detail,
+    .deck-kind {
+      animation: none;
+    }
+  }
+
+  .commit {
+    transform-origin: left center;
+    will-change: transform, opacity;
+    /* The scale overshoots and settles — a spring, not a ramp. That tiny
+     * arrival past the target is the whole difference between "it got bigger"
+     * and "it came forward". */
+    transition:
+      transform 0.44s cubic-bezier(0.34, 1.42, 0.5, 1),
+      opacity 0.34s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    /* The deck: one commit in focus, its neighbours either side of it, and the
+   * page's scroll borrowed only while it still has somewhere to go. */
+  .deck {
+    touch-action: pan-x;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .deck:focus-visible {
+    outline: 2px solid var(--color-p-ink);
+    outline-offset: 4px;
+  }
+
+  .deck-card,
+  .deck-node {
+    transform-origin: left center;
+    will-change: transform;
+    /* Overshoots and settles — a spring, not a ramp. That arrival past the
+     * target is the difference between "it got bigger" and "it came forward". */
+    transition:
+      transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1),
+      opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .deck-node {
+    transform-origin: center;
+  }
+
+  /* The kind mark, springing in on whichever commit has the deck. */
+  .deck-kind {
+    animation: deck-kind 0.42s cubic-bezier(0.32, 1.5, 0.5, 1) both;
+  }
+
+  @keyframes deck-kind {
+    from {
+      opacity: 0;
+      transform: scale(0.4) rotate(-12deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* The focused commit's detail, arriving after the deck has settled. */
+  .deck-detail {
+    animation: deck-detail 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes deck-detail {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .deck-card,
+    .deck-node {
+      transition: none;
+    }
+
+    .deck-detail,
+    .deck-kind {
+      animation: none;
+    }
+  }
+
+  .commit {
+      transform: none !important;
+      filter: none !important;
+      transition: opacity 0.2s ease;
+    }
+  }
+
   /* The availability dot, on the hero. */
   .pulse::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: 9999px;
-    background: var(--color-p-ink);
+    background: var(--pulse-color, var(--color-p-ink));
     animation: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
