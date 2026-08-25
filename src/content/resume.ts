@@ -277,11 +277,14 @@ export const education: {
   /** Label for a bar too narrow for the full name. Beats the automatic
    *  initialism, which turns a four-word phrase into alphabet soup. */
   short?: string
+  /** Colours its bar on the timeline. A language course is not a degree. */
+  kind?: 'degree' | 'language'
 }[] = [
   {
     /* TODO: institution. */
     start: '2022-10',
     end: '2026-09',
+    kind: 'degree',
     what: {
       de: 'B.Sc. Angewandte Informatik',
       en: 'B.Sc. Applied Computer Science',
@@ -293,6 +296,7 @@ export const education: {
     /* Fills the gap between the roles in Iran ending and hulle24 starting. */
     start: '2022-02',
     end: '2022-10',
+    kind: 'language',
     what: {
       de: 'Deutschkurs & Umzug nach Deutschland',
       en: 'German course & move to Germany',
@@ -304,8 +308,12 @@ export const education: {
   {
     start: '2014-09',
     end: '2018-09',
+    kind: 'degree',
     what: { de: 'B.Sc. Maschinenbau', en: 'B.Sc. Mechanical Engineering' },
     where: 'Azad-Universität — Niederlassung für Wissenschaften und Forschung',
+    /* Off the chart: it pulled the axis back to 2014, squeezing every role
+       into the right-hand third. Still listed under Ausbildung. */
+    chart: false,
     note: {
       de: 'Schwerpunkt: Modellierung und Simulation mit Matlab',
       en: 'Focus: modelling and simulation with Matlab',

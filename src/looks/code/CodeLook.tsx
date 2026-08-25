@@ -35,7 +35,7 @@ function Prompt({ children }: { children: React.ReactNode }) {
 /** Every panel's padding, in one place. The shell draws the frame. */
 function Panel({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <div id={id} className="p-4 sm:p-6">
+    <div id={id} className="p-3 sm:p-6">
       {children}
     </div>
   )
@@ -171,14 +171,14 @@ export function CodeExperience() {
         periodLabel: period(e, lang, present),
         start: e.start ?? null,
         end: e.end,
-        muted: true,
+        tone: e.kind === 'language' ? ('language' as const) : ('degree' as const),
       })),
   ]
 
   return (
     <Panel id="experience">
       <Reveal>
-        <div className="mb-6 rounded-lg border border-c-line bg-c-panel p-4 sm:p-5">
+        <div className="mb-5 rounded-lg border border-c-line bg-c-panel p-2 sm:p-5">
           {/* Reserves the chart's height so the panel does not jump when the
               chunk lands. */}
           <Suspense fallback={<div style={{ height: spans.length * 30 + 28 }} />}>
@@ -205,14 +205,6 @@ export function CodeExperience() {
 
           const head = (
             <>
-              <span
-                aria-hidden="true"
-                className={`text-c-dim transition-transform duration-200 ${
-                  foldable ? 'group-open:rotate-90' : 'invisible'
-                }`}
-              >
-                ▸
-              </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-mono text-[0.8125rem] text-c-text">
                   {t(job.role)}
@@ -241,7 +233,12 @@ export function CodeExperience() {
             onBlur: () => setActiveId(null),
           }
 
-          const frame = `group overflow-hidden rounded-lg border bg-c-panel transition-colors duration-200 ${
+          // Open state is carried by an inset rail on the left edge rather
+          // than a disclosure triangle: it costs no horizontal space, which on
+          // a phone was the triangle's real price.
+          const frame = `group overflow-hidden rounded-lg border bg-c-panel transition-all duration-200 ${
+            foldable ? 'open:shadow-[inset_2px_0_0_0_var(--color-c-ok)]' : ''
+          } ${
             activeId === jobId(job)
               ? 'border-c-ok/70 bg-c-line/20'
               : 'border-c-line hover:border-c-ok/40'
@@ -251,10 +248,10 @@ export function CodeExperience() {
             <Reveal as="li" key={jobId(job)} delay={i * 60}>
               {foldable ? (
                 <details open={i === 0} {...hover} className={frame}>
-                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-c-line/30">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-3 transition-colors hover:bg-c-line/30 sm:px-4">
                     {head}
                   </summary>
-                  <div className="space-y-3 border-t border-c-line px-4 py-4">
+                  <div className="space-y-3 border-t border-c-line px-3 py-4 sm:px-4">
                     {bullets.length > 0 && <DiffLines lines={bullets} />}
                     {job.stack.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
@@ -267,7 +264,7 @@ export function CodeExperience() {
                 </details>
               ) : (
                 <div {...hover} tabIndex={0} className={frame}>
-                  <div className="flex items-center gap-3 px-4 py-3">{head}</div>
+                  <div className="flex items-center gap-2 px-3 py-3 sm:px-4">{head}</div>
                 </div>
               )}
             </Reveal>
@@ -275,42 +272,50 @@ export function CodeExperience() {
         })}
       </ul>
 
-      <Reveal className="mt-4">
-        <div className="rounded-lg border border-c-line bg-c-panel px-4 py-3 font-mono text-[0.75rem]">
-          <span className="text-c-dim">
-            <C># {t(ui.sections.education).toLowerCase()}</C>
-          </span>
-          {education.map((e) => (
-            // Same highlight contract as a job card: hovering the row holds
-            // its bar in the lower band of the chart.
-            <div
-              key={t(e.what)}
-              {...(e.chart === false
-                ? {}
-                : {
-                    tabIndex: 0,
-                    onMouseEnter: () => setActiveId(`edu-${e.what.de}`),
-                    onMouseLeave: () => setActiveId(null),
-                    onFocus: () => setActiveId(`edu-${e.what.de}`),
-                    onBlur: () => setActiveId(null),
-                  })}
-              className={`-mx-2 mt-1 flex flex-wrap gap-x-2 rounded px-2 py-1 transition-colors ${
-                e.chart === false
-                  ? ''
-                  : activeId === `edu-${e.what.de}`
-                    ? 'bg-c-line/60'
-                    : 'hover:bg-c-line/40'
-              }`}
-            >
-              <span className="text-c-text">{t(e.what)}</span>
-              {e.where && <span className="text-c-dim">· {e.where}</span>}
-              <span className="text-c-num">
-                ·{' '}
-                {period(e, lang, present)}
-              </span>
-              {t(e.note) && <span className="text-c-dim">· {t(e.note)}</span>}
-            </div>
-          ))}
+      <Reveal className="mt-8">
+        {/* Was a dim `# ausbildung` comment tucked under the roles, which read
+            as a footnote. It is a section of the CV, so it is headed like one. */}
+        <div className="rounded-lg border border-c-line bg-c-panel p-3 sm:p-4">
+          <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
+            {t(ui.sections.education)}
+          </h3>
+          <ul className="mt-3 divide-y divide-c-line/60">
+            {education.map((e) => (
+              <li
+                key={t(e.what)}
+                {...(e.chart === false
+                  ? {}
+                  : {
+                      tabIndex: 0,
+                      onMouseEnter: () => setActiveId(`edu-${e.what.de}`),
+                      onMouseLeave: () => setActiveId(null),
+                      onFocus: () => setActiveId(`edu-${e.what.de}`),
+                      onBlur: () => setActiveId(null),
+                    })}
+                className={`-mx-2 rounded px-2 py-2.5 transition-colors ${
+                  e.chart === false
+                    ? ''
+                    : activeId === `edu-${e.what.de}`
+                      ? 'bg-c-line/60'
+                      : 'hover:bg-c-line/40'
+                }`}
+              >
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <span className="font-mono text-[0.8125rem] text-c-text">
+                    {t(e.what)}
+                  </span>
+                  <span className="font-mono text-[0.6875rem] text-c-num">
+                    {period(e, lang, present)}
+                  </span>
+                </div>
+                {(e.where || t(e.note)) && (
+                  <div className="mt-0.5 font-mono text-[0.6875rem] text-c-dim">
+                    {[e.where, t(e.note)].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       </Reveal>
     </Panel>
@@ -327,7 +332,7 @@ export function CodeSkills() {
       <div className="grid gap-2 sm:grid-cols-2">
         {skills.map((group, i) => (
           <Reveal key={t(group.group)} delay={i * 50}>
-            <div className="h-full rounded-lg border border-c-line bg-c-panel p-4">
+            <div className="h-full rounded-lg border border-c-line bg-c-panel p-3 sm:p-4">
               <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
                 {t(group.group)}
               </h3>
@@ -348,7 +353,7 @@ export function CodeSkills() {
       </Reveal>
 
       <Reveal delay={260} className="mt-4">
-        <div className="rounded-lg border border-c-line bg-c-panel p-4">
+        <div className="rounded-lg border border-c-line bg-c-panel p-3 sm:p-4">
           <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
             {t(ui.sections.languages)}
           </h3>

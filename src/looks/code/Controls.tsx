@@ -49,34 +49,30 @@ function Flag({ lang }: { lang: Lang }) {
   )
 }
 
-/** The language switch: two codes, each over its flag. */
+/**
+ * One button, not two: it shows the language you are reading in and switches
+ * to the other. Two buttons spent twice the width to say the same thing, and
+ * on a phone that width comes out of the tab strip.
+ */
 export function LangControl({
   lang,
-  setLang,
+  toggle,
   label,
 }: {
   lang: Lang
-  setLang: (l: Lang) => void
+  toggle: () => void
   label: string
 }) {
+  const other: Lang = lang === 'de' ? 'en' : 'de'
   return (
-    <div role="group" aria-label={label} className="flex items-center gap-1">
-      {(['de', 'en'] as const).map((code) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => setLang(code)}
-          aria-pressed={lang === code}
-          className={`flex flex-col items-center gap-1 rounded px-1.5 py-1 font-mono text-[0.625rem] uppercase transition-all ${
-            lang === code
-              ? 'text-c-text opacity-100'
-              : 'text-c-dim opacity-45 hover:opacity-80'
-          }`}
-        >
-          {code}
-          <Flag lang={code} />
-        </button>
-      ))}
-    </div>
+    <button
+      type="button"
+      onClick={toggle}
+      title={`${label} → ${other.toUpperCase()}`}
+      aria-label={`${label} → ${other.toUpperCase()}`}
+      className="group flex items-center rounded px-1.5 py-1 text-c-dim transition-colors hover:bg-c-line/60 hover:text-c-text"
+    >
+      <Flag lang={lang} />
+    </button>
   )
 }

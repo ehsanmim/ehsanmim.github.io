@@ -23,7 +23,7 @@ type Tab = { id: string; file: string; panel: ReactNode }
  * through everything to reach it.
  */
 export function CodeShell() {
-  const { lang, setLang, t } = useLang()
+  const { lang, toggle, t } = useLang()
   const tabs = useMemo<Tab[]>(
     () => [
       { id: 'top', file: t(ui.tabs.start), panel: <CodeHero /> },
@@ -70,16 +70,16 @@ export function CodeShell() {
   const current = tabs.find((t) => t.id === active) ?? tabs[0]
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
+    <div className="mx-auto max-w-4xl px-2 pt-3 pb-8 sm:px-6 sm:pt-10">
       <div className="overflow-hidden rounded-lg border border-c-line bg-c-panel">
         {/* No traffic lights: on a phone three decorative dots cost a fifth
             of the row that the tab names need. */}
-        <div className="flex items-center gap-2 border-b border-c-line pr-2 pl-1">
+        <div className="flex items-center gap-2 border-b border-c-line bg-c-bg/70 pr-2 pl-1">
           {/* Scrolls sideways rather than wrapping: a second row of tabs would
               push the content itself off the first screen. */}
           <div
             role="tablist"
-            className="scrollbar-none -mb-px flex min-w-0 flex-1 overflow-x-auto"
+            className="scrollbar-none flex min-w-0 flex-1 overflow-x-auto"
           >
             {tabs.map((tab) => (
               <button
@@ -90,10 +90,12 @@ export function CodeShell() {
                 aria-controls={`panel-${tab.id}`}
                 id={`tab-${tab.id}`}
                 onClick={() => select(tab.id)}
-                className={`shrink-0 border-b-2 px-3 py-3 font-mono text-xs transition-colors ${
+                // The active tab is lifted out of the strip the way an editor
+                // does it: panel-coloured, brighter text, a rule along the top.
+                className={`shrink-0 border-t-2 px-3 py-2.5 font-mono text-[0.8125rem] transition-colors ${
                   active === tab.id
-                    ? 'border-c-ok bg-c-bg/40 text-c-text'
-                    : 'border-transparent text-c-dim hover:text-c-text'
+                    ? 'border-c-ok bg-c-panel font-medium text-c-text'
+                    : 'border-transparent text-c-dim hover:bg-c-line/40 hover:text-c-text'
                 }`}
               >
                 {tab.file}
@@ -102,7 +104,7 @@ export function CodeShell() {
           </div>
 
           <div className="flex shrink-0 items-center pl-2">
-            <LangControl lang={lang} setLang={setLang} label={t(ui.langLabel)} />
+            <LangControl lang={lang} toggle={toggle} label={t(ui.langLabel)} />
           </div>
         </div>
 

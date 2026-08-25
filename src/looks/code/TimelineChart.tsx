@@ -1,4 +1,9 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import {
   Bar,
   BarChart,
@@ -20,8 +25,9 @@ export type Span = {
   short?: string
   start: YearMonth | null
   end: YearMonth | null
-  /** Studies are context, not the subject — drawn in one flat tone. */
-  muted?: boolean
+  /** Studies are context rather than the subject, and a language course is
+   *  not a degree — each gets its own muted tone. */
+  tone?: 'degree' | 'language'
   /** Second line of the popover: the role, the institution. */
   detail?: string
   /** The period as written for the reader, e.g. "Jan. 2023 — heute". */
@@ -39,52 +45,17 @@ type Row = {
   fromValue: number
   toValue: number
   periodLabel: string
+  study: boolean
   detail?: string
 }
 
-const MUTED = '#3b4252'
-
-/**
- * A name drawn inside its own bar, and only when it fits. Recharts would
- * happily paint the label past the bar's end, where it reads as belonging to
- * whatever is next to it.
- */
-function BarLabel({
-  x,
-  y,
-  width,
-  height,
-  value,
-}: {
-  // Recharts types these as string | number.
-  x?: string | number
-  y?: string | number
-  width?: string | number
-  height?: string | number
-  value?: unknown
-}) {
-  const text = String(value ?? '')
-  const px = Number(x)
-  const py = Number(y)
-  const w = Number(width)
-  const h = Number(height)
-  if (![px, py, w, h].every(Number.isFinite)) return null
-  // ~5.6px per character at this size, plus the padding either side.
-  if (w < text.length * 5.6 + 14) return null
-  return (
-    <text
-      x={px + 7}
-      y={py + h / 2}
-      dominantBaseline="central"
-      fill="#0b0e14"
-      fontSize={10}
-      fontFamily="JetBrains Mono"
-      fontWeight={500}
-    >
-      {text}
-    </text>
-  )
-}
+/* Desaturated on purpose: the study band sits behind the roles rather than
+ * competing with the work palette, but a degree and a language course still
+ * have to be told apart at a glance. */
+const TONES = {
+  degree: '#4d5b7c',
+  language: '#7a6a4a',
+} as const
 
 /**
  * The career as one chart: a bar per role, scaled to its real duration.
@@ -110,6 +81,19 @@ export function TimelineChart({
   onHover?: (id: string | null) => void
 }) {
   const wrapRef = useRef<HTMLDivElement>(null)
+  // Below this the bars are too short to hold their own names.
+  const [narrow, setNarrow] = useState(false)
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([entry]) =>
+      setNarrow(entry.contentRect.width < 560),
+    )
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // Crosshair position and the year under it, both resolved in the pointer
   // handler — that is where the box is measured, and a ref must not be read
   // during render.
@@ -133,7 +117,9 @@ export function TimelineChart({
   const starts = dated.map((s) => toYears(s.start))
   const ends = dated.map((s) => (s.end ? toYears(s.end) : nowYears))
   const first = Math.floor(Math.min(...starts))
-  const last = Math.ceil(Math.max(...ends))
+  // Not ceiled: rounding the end up to the next whole year added a tick for a
+  // year nothing on the chart reaches.
+  const last = Math.max(...ends)
 
   const rows: Row[] = dated.map((s, i) => {
     const from = toYears(s.start)
@@ -144,7 +130,8 @@ export function TimelineChart({
       axis: s.short ?? s.label,
       offset: from - first,
       duration: Math.max(to - from, 0.15),
-      color: s.muted ? MUTED : seriesColor(i),
+      color: s.tone ? TONES[s.tone] : seriesColor(i),
+      study: s.tone !== undefined,
       fromValue: from,
       toValue: to,
       periodLabel:
@@ -165,10 +152,93 @@ export function TimelineChart({
     ? rows.filter((r) => cursor.value >= r.fromValue && cursor.value <= r.toValue)
     : []
 
-  const ROW = 30
+  // Taller rows on a phone, because the name sits above the bar rather than
+  // inside it.
+  const ROW = narrow ? 48 : 32
+  // Headroom for the first row's label, which sits above its bar when narrow.
+  const TOP = narrow ? 14 : 0
   const AXIS_H = 26
   const RIGHT = 6
   const POPOVER_W = 210
+  const CHAR = 5.6
+  const CAP_W = 13
+
+  /** A mortarboard: the board, then the cap and tassel beneath it. */
+  const Cap = ({ x, y, fill }: { x: number; y: number; fill: string }) => (
+    <g transform={`translate(${x}, ${y})`} fill={fill}>
+      <path d="M0 3 L5.5 0 L11 3 L5.5 6 Z" />
+      <path d="M2.4 4.4 L2.4 6.6 Q5.5 8.4 8.6 6.6 L8.6 4.4 L5.5 6.1 Z" />
+      <rect x="10.4" y="3" width="0.8" height="3.6" rx="0.4" />
+    </g>
+  )
+
+  /**
+   * The bar's name. Inside the bar where it fits, and above it when it does
+   * not — which on a phone is every bar. Anonymous coloured blocks were the
+   * previous behaviour and told the reader nothing without a hover.
+   */
+  const renderLabel = (props: {
+    x?: string | number
+    y?: string | number
+    width?: string | number
+    height?: string | number
+    value?: unknown
+    index?: number
+  }) => {
+    const px = Number(props.x)
+    const py = Number(props.y)
+    const w = Number(props.width)
+    const h = Number(props.height)
+    if (![px, py, w, h].every(Number.isFinite)) return null
+
+    const row = props.index != null ? rows[props.index] : undefined
+    const cap = row?.study ?? false
+    const capW = cap ? CAP_W : 0
+    const full = String(props.value ?? '')
+    const text = full.length > 26 ? `${full.slice(0, 25)}…` : full
+    const fits = w >= text.length * CHAR + 14 + capW
+
+    if (fits) {
+      return (
+        <g>
+          {cap && <Cap x={px + 6} y={py + h / 2 - 4} fill="#0b0e14" />}
+          <text
+            x={px + 7 + capW}
+            y={py + h / 2}
+            dominantBaseline="central"
+            fill="#0b0e14"
+            fontSize={10}
+            fontFamily="JetBrains Mono"
+            fontWeight={500}
+          >
+            {text}
+          </text>
+        </g>
+      )
+    }
+
+    if (!narrow) return null
+
+    // Above the bar, nudged left when the text would run past the right edge.
+    const plot = Math.max((wrapRef.current?.clientWidth ?? 0) - RIGHT, 0)
+    const width = text.length * CHAR + capW
+    const x = plot > 0 ? Math.min(px, Math.max(plot - width, 0)) : px
+    const colour = row?.color ?? '#9aa4b2'
+    return (
+      <g>
+        {cap && <Cap x={x} y={py - 12} fill={colour} />}
+        <text
+          x={x + capW}
+          y={py - 4}
+          fill={colour}
+          fontSize={9.5}
+          fontFamily="JetBrains Mono"
+        >
+          {text}
+        </text>
+      </g>
+    )
+  }
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const box = wrapRef.current?.getBoundingClientRect()
@@ -249,12 +319,16 @@ export function TimelineChart({
           </div>
         </>
       )}
-      <ResponsiveContainer width="100%" height={rows.length * ROW + 28}>
+      <ResponsiveContainer width="100%" height={rows.length * ROW + 28 + TOP}>
       <BarChart
         data={rows}
         layout="vertical"
-        margin={{ top: 0, right: 6, bottom: 0, left: 0 }}
-        barCategoryGap={5}
+        margin={{ top: TOP, right: RIGHT, bottom: 0, left: 0 }}
+        // An explicit size, with the row height providing the breathing room.
+        // Deriving thickness from barCategoryGap collapsed the bars to strips
+        // as soon as the gap grew.
+        barCategoryGap="18%"
+        barSize={narrow ? 18 : 20}
         onMouseLeave={() => onHover?.(null)}
       >
         <CartesianGrid
@@ -284,7 +358,7 @@ export function TimelineChart({
           isAnimationActive={false}
           onMouseEnter={(_, index: number) => onHover?.(rows[index]?.id ?? null)}
         >
-          <LabelList dataKey="axis" content={BarLabel} />
+          <LabelList dataKey="axis" content={renderLabel} />
           {rows.map((row) => (
             <Cell
               key={row.id}
