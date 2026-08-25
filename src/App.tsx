@@ -1,3 +1,4 @@
+import { projects } from './content/resume'
 import { useHashScroll } from './lib/hooks'
 import { LangProvider } from './lib/i18n'
 import { LookProvider } from './lib/look'
@@ -35,7 +36,7 @@ function Looks() {
           <CodeAbout />
           <CodeExperience />
           <CodeSkills />
-          <CodeProjects />
+          {projects.length > 0 && <CodeProjects />}
           <CodeContact />
         </main>
         <CodeFooter />
@@ -51,7 +52,7 @@ function Looks() {
         <About />
         <Experience />
         <Skills />
-        <Projects />
+        {projects.length > 0 && <Projects />}
         <Contact />
       </main>
       <Footer />
