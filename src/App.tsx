@@ -1,26 +1,73 @@
-import { useState } from 'react'
+import { useHashScroll } from './lib/hooks'
+import { LangProvider } from './lib/i18n'
+import { LookProvider } from './lib/look'
+import { useLook } from './lib/look-context'
+import {
+  CodeAbout,
+  CodeContact,
+  CodeExperience,
+  CodeFooter,
+  CodeHero,
+  CodeProjects,
+  CodeSkills,
+} from './looks/code/CodeLook'
+import { CodeNav } from './looks/code/CodeNav'
+import { Contact, Footer } from './looks/editorial/Contact'
+import { About, Experience } from './looks/editorial/Experience'
+import { Hero } from './looks/editorial/Hero'
+import { Nav } from './looks/editorial/Nav'
+import { Projects, Skills } from './looks/editorial/Skills'
 
-function App() {
-  const [count, setCount] = useState(0)
+/**
+ * Two complete skins over one content file. Both are shipped so they can be
+ * compared on the real thing; whichever loses gets deleted, and its directory
+ * goes with it.
+ */
+function Looks() {
+  const { look } = useLook()
+
+  if (look === 'code') {
+    return (
+      <>
+        <CodeNav />
+        <main>
+          <CodeHero />
+          <CodeAbout />
+          <CodeExperience />
+          <CodeSkills />
+          <CodeProjects />
+          <CodeContact />
+        </main>
+        <CodeFooter />
+      </>
+    )
+  }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-slate-950 text-slate-100">
-      <div className="flex flex-col items-center gap-6 px-6 text-center">
-        <h1 className="text-4xl font-semibold tracking-tight">cv / e.test</h1>
-        <p className="max-w-md text-slate-400">
-          React + Vite + Tailwind, served by the slot container through Traefik.
-          Edit <code className="rounded bg-slate-800 px-1.5 py-0.5">src/App.tsx</code>{' '}
-          and the page updates without a reload.
-        </p>
-        <button
-          type="button"
-          onClick={() => setCount((c) => c + 1)}
-          className="rounded-lg bg-indigo-500 px-5 py-2.5 font-medium transition hover:bg-indigo-400"
-        >
-          count is {count}
-        </button>
-      </div>
-    </main>
+    <>
+      <Nav />
+      <main>
+        <Hero />
+        <About />
+        <Experience />
+        <Skills />
+        <Projects />
+        <Contact />
+      </main>
+      <Footer />
+    </>
+  )
+}
+
+function App() {
+  useHashScroll()
+
+  return (
+    <LookProvider>
+      <LangProvider>
+        <Looks />
+      </LangProvider>
+    </LookProvider>
   )
 }
 
