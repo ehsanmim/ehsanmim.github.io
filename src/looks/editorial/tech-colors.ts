@@ -20,7 +20,7 @@ const TECH_COLORS: Record<string, string> = {
   traefik: '#24a1c1',
   'docker compose': '#2496ed',
   git: '#f05033',
-  github: '#c9d1d9',
+  github: '#6e7781',
   gitlab: '#fc6d26',
   nginx: '#009639',
   linux: '#fcc624',
@@ -42,13 +42,4 @@ const TECH_COLORS: Record<string, string> = {
 
 export function techColor(name: string): string {
   return TECH_COLORS[name.toLowerCase()] ?? '#6b7689'
-}
-
-/* Categorical palette for chart series — timeline segments, the skills bar.
- * Colour by position, never by tech: two neighbouring series that happen to
- * share a primary language would otherwise merge into one block. */
-const SERIES_COLORS = ['#7ee787', '#79c0ff', '#d2a8ff', '#ffa657', '#ff7b72']
-
-export function seriesColor(i: number): string {
-  return SERIES_COLORS[i % SERIES_COLORS.length]
 }

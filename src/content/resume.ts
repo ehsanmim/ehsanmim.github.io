@@ -377,9 +377,20 @@ export const ui = {
   tabs: {
     start: { de: 'Start', en: 'Start' } satisfies T,
   },
+  /** The hero's lede label and the two buttons under it. */
+  hero: {
+    mailCta: { de: 'Schreib mir', en: 'Get in touch' } satisfies T,
+    viewWork: { de: 'Werdegang ansehen', en: 'See the history' } satisfies T,
+  },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
+  themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
+  /** Sits above the commit graph, in place of a chart legend. */
+  graphNote: {
+    de: 'Beruf auf dem Hauptstrang, Studium auf dem Zweig.',
+    en: 'Career on the trunk, studies on the branch.',
+  } satisfies T,
   present: { de: 'heute', en: 'present' } satisfies T,
   rights: { de: 'Alle Rechte vorbehalten.', en: 'All rights reserved.' } satisfies T,
 }

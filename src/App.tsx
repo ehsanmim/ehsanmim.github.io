@@ -1,17 +1,10 @@
-import { useHashScroll } from './lib/hooks'
 import { LangProvider } from './lib/i18n'
-import { CodeFooter } from './looks/code/CodeLook'
-import { CodeShell } from './looks/code/CodeShell'
+import { Shell } from './looks/editorial/Shell'
 
 function App() {
-  useHashScroll()
-
   return (
     <LangProvider>
-      <main>
-        <CodeShell />
-      </main>
-      <CodeFooter />
+      <Shell />
     </LangProvider>
   )
 }
