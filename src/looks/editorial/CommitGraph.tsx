@@ -44,6 +44,8 @@ const CURVE = 24
 /* Wider than the lanes need: the slack is the gap between the graph and the
  * commit, which the lanes would otherwise sit right up against. */
 const GUTTER = 76
+/** The space each row leaves under itself — `pb-6`. */
+const ROW_GAP = 24
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -155,6 +157,31 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return () => io.disconnect()
   }, [coarse, commits])
 
+  // The highlight is one panel for the whole list, not one per row: it slides
+  // and stretches from the commit you left to the commit you arrived at, which
+  // is the whole effect. Measured off the rows rather than assumed, because a
+  // row's height depends on whether it is unfolded.
+  const [box, setBox] = useState<{ top: number; height: number } | null>(null)
+  useEffect(() => {
+    const ol = list.current
+    if (!active || !ol) return
+    const row = ol.querySelector<HTMLElement>(`[data-commit="${CSS.escape(active)}"]`)
+    if (!row) return
+
+    const measure = () => {
+      const o = ol.getBoundingClientRect()
+      const r = row.getBoundingClientRect()
+      // Less the gap the row carries below it, so the panel hugs the commit
+      // rather than the space after it. Kept in step with `pb-6` on the row.
+      setBox({ top: r.top - o.top, height: r.height - ROW_GAP })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [active])
+
+  const activeLane = laneColor(commits.find((c) => c.id === active)?.lane ?? 0)
+
   const rowsOf = (lane: Lane) =>
     commits.reduce<number[]>((rows, c, i) => (c.lane === lane ? [...rows, i] : rows), [])
   const main = rowsOf(0)
@@ -195,7 +222,21 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
   })()
 
   return (
-    <ol ref={list} className="relative">
+    <ol ref={list} className="relative isolate">
+      {/* Behind every row, and the only thing that moves. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl"
+        style={{
+          transform: `translateY(${box?.top ?? 0}px)`,
+          height: box?.height ?? 0,
+          opacity: active && box ? 1 : 0,
+          background: `color-mix(in oklab, ${activeLane} 9%, var(--color-surface))`,
+          boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${activeLane} 22%, transparent)`,
+          transition:
+            'transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), height 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease, background-color 0.38s ease',
+        }}
+      />
       {commits.map((commit, i) => {
         const lanes = [
           { lane: 0, seg: segment(mainSpan, i) },
@@ -204,7 +245,12 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
         ]
 
         return (
-          <Reveal as="li" key={commit.id} delay={Math.min(i, 6) * 55}>
+          <Reveal
+            as="li"
+            key={commit.id}
+            delay={Math.min(i, 6) * 55}
+            className="relative z-10"
+          >
             <div
               data-commit={commit.id}
               className="grid"
@@ -234,7 +280,6 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
               <Row
                 commit={commit}
                 open={i === 0}
-                active={active === commit.id}
                 dim={active !== null && active !== commit.id}
                 onActive={(on) => setHovered(on ? commit.id : null)}
               />
@@ -268,17 +313,15 @@ function Node({
         left: LANE_X[lane] - 5.5,
         top: NODE_Y - 5.5,
         transformOrigin: 'center',
-        transform: active ? 'scale(1.45)' : undefined,
-        opacity: dim ? 0.4 : 1,
+        transform: active ? 'scale(1.3)' : undefined,
+        opacity: dim ? 0.5 : 1,
       }}
     >
       <span
         className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg transition-colors duration-200"
         style={{
           background: head || active ? laneColor(lane) : 'var(--color-bg)',
-          boxShadow: active
-            ? `inset 0 0 0 2px ${laneColor(lane)}, 0 0 0 5px color-mix(in oklab, ${laneColor(lane)} 22%, transparent), 0 0 14px 2px color-mix(in oklab, ${laneColor(lane)} 45%, transparent)`
-            : `inset 0 0 0 2px ${laneColor(lane)}`,
+          boxShadow: `inset 0 0 0 2px ${laneColor(lane)}`,
         }}
       >
         {/* The ring that marks the work still in progress. */}
@@ -296,13 +339,11 @@ function Node({
 function Row({
   commit,
   open,
-  active,
   dim,
   onActive,
 }: {
   commit: Commit
   open: boolean
-  active: boolean
   dim: boolean
   onActive: (on: boolean) => void
 }) {
@@ -352,24 +393,7 @@ function Row({
     </>
   )
 
-  const lane = laneColor(commit.lane)
-  // The backdrop the lifted commit sits on. Negative margins cancel the padding
-  // for layout, so the card is bigger than the row's flow box without moving a
-  // single pixel of content when it appears.
-  const shell =
-    '-mx-3 -my-2 rounded-xl px-3 py-2 transition-[background-color,box-shadow,backdrop-filter] duration-300'
-  const shellStyle = active
-    ? {
-        background: 'color-mix(in oklab, var(--color-surface) 88%, transparent)',
-        backdropFilter: 'blur(8px) saturate(1.4)',
-        WebkitBackdropFilter: 'blur(8px) saturate(1.4)',
-        boxShadow: [
-          `0 20px 44px -20px color-mix(in oklab, ${lane} 70%, transparent)`,
-          `0 2px 10px -6px color-mix(in oklab, ${lane} 60%, transparent)`,
-          `inset 0 0 0 1px color-mix(in oklab, ${lane} 30%, transparent)`,
-        ].join(', '),
-      }
-    : { background: 'transparent' }
+  const shell = 'px-2'
 
   const detail = (
     <div className="space-y-3 pt-1 pb-4 pl-px">
@@ -400,20 +424,14 @@ function Row({
     // The lift stays modest on purpose: enough to separate the row from the
     // ones around it, small enough that the type does not go soft.
     <div
-      className="commit relative pb-6"
-      style={{
-        // Lifted and in front; or pushed back, faded and thrown out of focus,
-        // which is what makes the lifted one read as being in front rather
-        // than merely bigger.
-        transform: active ? 'scale(1.04)' : dim ? 'scale(0.985)' : undefined,
-        opacity: dim ? 0.4 : 1,
-        filter: dim ? 'blur(1.4px)' : undefined,
-        zIndex: active ? 20 : undefined,
-      }}
+      className="commit pb-6"
+      // Everything but the lit commit settles back. The panel does the moving;
+      // the rows only change how present they are.
+      style={{ opacity: dim ? 0.5 : 1 }}
       {...on}
     >
       {foldable ? (
-        <details open={open} className={`group ${shell}`} style={shellStyle}>
+        <details open={open} className={`group ${shell}`}>
           <summary className="flex cursor-pointer list-none items-start gap-3 py-1">
             {inner}
             <span
@@ -426,9 +444,7 @@ function Row({
           {detail}
         </details>
       ) : (
-        <div className={`flex items-start gap-3 py-1 ${shell}`} style={shellStyle}>
-          {inner}
-        </div>
+        <div className={`flex items-start gap-3 py-1 ${shell}`}>{inner}</div>
       )}
     </div>
   )
