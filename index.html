@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0b0b0c" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#fbfbfc" />
 
     <title>Ehsan Moradpour — Web-Entwickler</title>
     <meta
@@ -24,15 +24,29 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <!-- Enables the scroll-reveal styles. Inline and first so the class is set
-         before first paint; without it every .reveal element stays visible. -->
+    <!-- Inline and first, so both classes are set before first paint: `js`
+         enables the scroll-reveal styles (without it every .reveal element
+         stays visible), and `dark` avoids a white flash for a reader who has
+         chosen — or whose system has chosen — the dark theme. -->
     <script>
       document.documentElement.classList.add('js')
+      try {
+        var saved = localStorage.getItem('theme')
+        var dark =
+          saved === 'dark' ||
+          (!saved && matchMedia('(prefers-color-scheme: dark)').matches)
+        if (dark) {
+          document.documentElement.classList.add('dark')
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', '#0c1015')
+        }
+      } catch (e) {}
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
