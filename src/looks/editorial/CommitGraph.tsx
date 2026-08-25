@@ -1,20 +1,28 @@
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Reveal } from '../../lib/reveal'
 import { Dot, Tag } from './visuals'
 
 /**
- * `git log --graph`, drawn in HTML.
+ * `git log --graph` as a deck.
+ *
+ * One commit is in focus at a time, its neighbours sit above and below it,
+ * scaled back and faded, and everything further away is gone. Rolling the wheel
+ * over it — or dragging, or pressing a cursor key — moves the deck by exactly
+ * one commit rather than scrolling the page. At either end the page takes the
+ * scroll back, so the reader is never trapped in it.
  *
  * Three lanes, and they mean what their names mean. `main` carries the finished
- * roles. `wip` carries whatever is still running — it is branched off main and
+ * roles. `wip` carries whatever is still running — branched off main and
  * deliberately never merged, because that work is not done. `edu` carries the
- * studying, merging into main at its newest entry and forking off it at the
+ * studying, merging into main at its newest entry and forking off at the
  * oldest, so the years spent studying alongside a job read as exactly that
  * rather than as a second list further down the page.
  *
- * The gutter is absolutely positioned hairlines plus one small SVG curve per
- * junction. No chart library, and nothing distorts when a row grows because the
- * reader unfolded it.
+ * Every slot is exactly STEP tall and the stack only ever translates, so the
+ * lane lines drawn in each slot's gutter meet the ones above and below them
+ * seamlessly however far through the deck the reader is. The scaling that makes
+ * the focused commit come forward is applied to the text column alone, which is
+ * why it can never pull the graph apart.
  */
 
 /** 0 = main, 1 = wip, 2 = edu. */
@@ -37,20 +45,26 @@ export type Commit = {
 
 const LANE_X = [12, 28, 44]
 const LANE_VAR = ['--color-p', '--color-wip', '--color-edu']
-/** Where a node sits inside its row — level with the first line of the title. */
-const NODE_Y = 21
-/** How far a fork takes to travel between lanes. */
-const CURVE = 24
+/** One slot. Every commit occupies exactly this, in focus or not. */
+const STEP = 76
+/** Where a node sits inside its slot — dead centre, so the focused commit's
+ *  node lands on the deck's centre line. */
+const NODE_Y = STEP / 2
+/** How far a fork takes to travel between lanes. Has to fit inside a slot. */
+const CURVE = 26
 /* Wider than the lanes need: the slack is the gap between the graph and the
  * commit, which the lanes would otherwise sit right up against. */
 const GUTTER = 76
-/** The space each row leaves under itself — `pb-6`. */
-const ROW_GAP = 24
-/** How far the lit commit comes forward, and how far the rest fall back. Both
- *  the row and the panel behind it scale by ZOOM, about the same point, so the
- *  two never come apart. */
-const ZOOM = 1.07
-const RECEDE = 0.965
+/** How many commits are visible either side of the one in focus. */
+const REACH = 2
+/** How far the focused commit comes forward, and how far each ring back from it
+ *  falls away. */
+const ZOOM = 1.06
+const FALLOFF = 0.09
+/** Wheel travel that counts as "one commit". */
+const THRESHOLD = 60
+/** Quiet time before the deck will accept another turn. */
+const COOLDOWN = 260
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -58,10 +72,12 @@ const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 type Anchor = { row: number; y: number }
 type Span = { from: Anchor; to: Anchor }
 
-const earlier = (a: Anchor, b: Anchor) => (a.row - b.row || a.y - b.y) <= 0 ? a : b
-const later = (a: Anchor, b: Anchor) => (a.row - b.row || a.y - b.y) >= 0 ? a : b
+/** Compare two points by row first, then by height within the row. */
+const before = (a: Anchor, b: Anchor) => a.row - b.row || a.y - b.y
+const earlier = (a: Anchor, b: Anchor): Anchor => (before(a, b) <= 0 ? a : b)
+const later = (a: Anchor, b: Anchor): Anchor => (before(a, b) >= 0 ? a : b)
 
-/** The piece of a lane that falls inside one row, if any. */
+/** The piece of a lane that falls inside one slot, if any. */
 function segment(span: Span | null, i: number) {
   if (!span || i < span.from.row || i > span.to.row) return null
   return {
@@ -70,7 +86,7 @@ function segment(span: Span | null, i: number) {
   }
 }
 
-/** A vertical hairline. `to === null` means "carry on to the row's bottom". */
+/** A lane's vertical run. `to === null` means "carry on to the slot's bottom". */
 function Line({ lane, from, to }: { lane: number; from: number; to: number | null }) {
   return (
     <span
@@ -87,7 +103,7 @@ function Line({ lane, from, to }: { lane: number; from: number; to: number | nul
   )
 }
 
-/** The diagonal that joins two lanes, drawn in the colour of the branch. */
+/** The curve that joins a branch to the trunk, in either direction. */
 function Curve({
   a,
   b,
@@ -122,100 +138,120 @@ function Curve({
 }
 
 export function CommitGraph({ commits }: { commits: Commit[] }) {
-  // Held here rather than in the row: the node is drawn in the gutter and the
-  // row in the column beside it, and both have to answer to the same pointer.
-  // Two sources, and the pointer always wins.
-  const [hovered, setHovered] = useState<string | null>(null)
-  const [scrolled, setScrolled] = useState<string | null>(null)
-  const active = hovered ?? scrolled
-  const list = useRef<HTMLOListElement>(null)
+  const [index, setIndex] = useState(0)
+  const deck = useRef<HTMLDivElement>(null)
+  const last = commits.length - 1
 
-  // A touch device has no hover to give, so the commit crossing the middle of
-  // the screen is the one that lifts — scrolling the list is the touch
-  // equivalent of running down it with a cursor.
-  const [coarse, setCoarse] = useState(false)
+  const move = useCallback(
+    (by: number) => {
+      let moved = false
+      setIndex((i) => {
+        const next = Math.min(last, Math.max(0, i + by))
+        moved = next !== i
+        return next
+      })
+      return moved
+    },
+    [last],
+  )
+
+  /**
+   * The deck takes the wheel only while it still has somewhere to go. Once it
+   * is at either end the event is left alone and the page scrolls on past it —
+   * a section that swallows the scroll and will not give it back is a trap, not
+   * an effect.
+   */
   useEffect(() => {
-    const mq = window.matchMedia('(hover: none)')
-    const read = () => setCoarse(mq.matches)
-    read()
-    mq.addEventListener('change', read)
-    return () => mq.removeEventListener('change', read)
-  }, [])
+    const el = deck.current
+    if (!el) return
 
-  useEffect(() => {
-    if (!coarse) return
-    const rows = list.current?.querySelectorAll<HTMLElement>('[data-commit]')
-    if (!rows?.length) return
+    let acc = 0
+    let locked = false
+    let quiet: ReturnType<typeof setTimeout> | undefined
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        const hit = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
-        if (hit) setScrolled(hit.target.getAttribute('data-commit'))
-      },
-      // Between two rows nothing crosses the band; the last one stays lifted
-      // rather than the whole list flickering back in the gap.
-      { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
-    )
-    rows.forEach((row) => io.observe(row))
-    return () => io.disconnect()
-  }, [coarse, commits])
-
-  // The highlight is one panel for the whole list, not one per row: it slides
-  // and stretches from the commit you left to the commit you arrived at, which
-  // is the whole effect. Measured off the rows rather than assumed, because a
-  // row's height depends on whether it is unfolded.
-  const [box, setBox] = useState<{ top: number; height: number } | null>(null)
-  useEffect(() => {
-    const ol = list.current
-    if (!active || !ol) return
-    const row = ol.querySelector<HTMLElement>(`[data-commit="${CSS.escape(active)}"]`)
-    if (!row) return
-
-    const measure = () => {
-      // offsetTop/offsetHeight rather than getBoundingClientRect: the lit row
-      // is scaled, and a painted rect would hand the panel a size that grew
-      // along with it. Layout values ignore transforms.
-      let top = 0
-      for (let el: HTMLElement | null = row; el && el !== ol; el = el.offsetParent as HTMLElement | null) {
-        top += el.offsetTop
-      }
-      // Less the gap the row carries below it, so the panel hugs the commit
-      // rather than the space after it. Kept in step with `pb-6` on the row.
-      setBox({ top, height: row.offsetHeight - ROW_GAP })
+    const settle = () => {
+      if (quiet) clearTimeout(quiet)
+      quiet = setTimeout(() => {
+        locked = false
+        acc = 0
+      }, COOLDOWN)
     }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [active])
 
-  const activeLane = laneColor(commits.find((c) => c.id === active)?.lane ?? 0)
+    const turn = (delta: number, cancel: () => void) => {
+      const room = delta > 0 ? index < last : index > 0
+      if (!room) return
+      // The page must not scroll underneath a deck that is about to move.
+      cancel()
+      settle()
+      if (locked) return
+      acc += delta
+      if (Math.abs(acc) < THRESHOLD) return
+      acc = 0
+      if (move(Math.sign(delta))) locked = true
+    }
 
+    const onWheel = (e: WheelEvent) => {
+      turn(e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY, () => e.preventDefault())
+    }
+
+    let from: number | null = null
+    const onTouchStart = (e: TouchEvent) => {
+      from = e.touches[0]?.clientY ?? null
+      acc = 0
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY
+      if (y === undefined || from === null) return
+      turn(from - y, () => e.preventDefault())
+      from = y
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    return () => {
+      if (quiet) clearTimeout(quiet)
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+    }
+  }, [index, last, move])
+
+  const onKey = (e: React.KeyboardEvent) => {
+    const by = { ArrowDown: 1, PageDown: 1, ArrowUp: -1, PageUp: -1 }[e.key]
+    if (by) {
+      e.preventDefault()
+      move(by)
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setIndex(0)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setIndex(last)
+    }
+  }
+
+  // ── the lanes, in slot coordinates ────────────────────────────────────────
   const rowsOf = (lane: Lane) =>
     commits.reduce<number[]>((rows, c, i) => (c.lane === lane ? [...rows, i] : rows), [])
   const main = rowsOf(0)
   const wip = rowsOf(1)
   const edu = rowsOf(2)
 
-  /** A branch runs from its newest node to its oldest. */
   const branchSpan = (rows: number[]): Span | null =>
     rows.length
-      ? { from: { row: rows[0], y: NODE_Y }, to: { row: rows[rows.length - 1], y: NODE_Y } }
+      ? {
+          from: { row: rows[0], y: NODE_Y },
+          to: { row: rows[rows.length - 1], y: NODE_Y },
+        }
       : null
 
   const wipSpan = branchSpan(wip)
   const eduSpan = branchSpan(edu)
-
-  // wip is never merged, so it only touches main where it forks off, below its
-  // oldest commit. edu touches main twice: it merges in above its newest and
-  // forks off below its oldest.
   const wipFork = wip.length ? { row: wip[wip.length - 1], y: NODE_Y + CURVE } : null
   const eduMerge = edu.length && edu[0] > 0 ? { row: edu[0], y: 0 } : null
   const eduFork = edu.length ? { row: edu[edu.length - 1], y: NODE_Y + CURVE } : null
 
-  // main has to reach every junction its branches make with it, whether or not
-  // it has a commit of its own that far up or down.
   const mainSpan: Span | null = (() => {
     const tops = [
       ...(main.length ? [{ row: main[0], y: NODE_Y }] : []),
@@ -231,143 +267,158 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
   })()
 
-  return (
-    <ol ref={list} className="relative isolate">
-      {/* Behind every row, and the only thing that moves. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl"
-        style={{
-          transformOrigin: 'left center',
-          transform: `translateY(${box?.top ?? 0}px) scale(${ZOOM})`,
-          height: box?.height ?? 0,
-          opacity: active && box ? 1 : 0,
-          background: `color-mix(in oklab, ${activeLane} 9%, var(--color-surface))`,
-          boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${activeLane} 22%, transparent), 0 14px 34px -18px color-mix(in oklab, ${activeLane} 60%, transparent)`,
-          transition:
-            'transform 0.44s cubic-bezier(0.34, 1.42, 0.5, 1), height 0.44s cubic-bezier(0.34, 1.42, 0.5, 1), opacity 0.25s ease, background-color 0.44s ease, box-shadow 0.44s ease',
-        }}
-      />
-      {commits.map((commit, i) => {
-        const lanes = [
-          { lane: 0, seg: segment(mainSpan, i) },
-          { lane: 1, seg: segment(wipSpan, i) },
-          { lane: 2, seg: segment(eduSpan, i) },
-        ]
+  const current = commits[index]
+  const height = STEP * (REACH * 2 + 1)
 
-        return (
-          <Reveal
-            as="li"
-            key={commit.id}
-            delay={Math.min(i, 6) * 55}
-            className="relative z-10"
+  return (
+    <div>
+      <Reveal>
+        <div
+          ref={deck}
+          role="listbox"
+          tabIndex={0}
+          aria-label={`${index + 1} / ${commits.length}`}
+          aria-activedescendant={`commit-${index}`}
+          onKeyDown={onKey}
+          className="deck relative overflow-hidden outline-none"
+          style={{ height }}
+        >
+          {/* The whole stack moves as one, so the lanes stay joined. */}
+          <div
+            className="absolute inset-x-0 top-0"
+            style={{
+              transform: `translateY(${REACH * STEP - index * STEP}px)`,
+              transition: 'transform 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
           >
-            <div
-              data-commit={commit.id}
-              className="grid"
-              style={{ gridTemplateColumns: `${GUTTER}px 1fr` }}
-            >
-              <div className="relative">
-                {lanes.map(({ lane, seg }) =>
-                  seg ? <Line key={lane} lane={lane} from={seg.from} to={seg.to} /> : null,
-                )}
-                {wipFork?.row === i && (
-                  <Curve a={1} b={0} top={NODE_Y} height={CURVE} tint={1} />
-                )}
-                {eduMerge?.row === i && (
-                  <Curve a={0} b={2} top={0} height={NODE_Y} tint={2} />
-                )}
-                {eduFork?.row === i && (
-                  <Curve a={2} b={0} top={NODE_Y} height={CURVE} tint={2} />
-                )}
-                <Node
-                  lane={commit.lane}
-                  head={commit.head}
-                  active={active === commit.id}
-                  dim={active !== null && active !== commit.id}
-                />
-              </div>
+            {commits.map((commit, i) => {
+              const off = i - index
+              const away = Math.abs(off)
+              const lanes = [
+                { lane: 0, seg: segment(mainSpan, i) },
+                { lane: 1, seg: segment(wipSpan, i) },
+                { lane: 2, seg: segment(eduSpan, i) },
+              ]
 
-              <Row
-                commit={commit}
-                open={i === 0}
-                lit={active === commit.id}
-                dim={active !== null && active !== commit.id}
-                onActive={(on) => setHovered(on ? commit.id : null)}
-              />
+              return (
+                <div
+                  key={commit.id}
+                  id={`commit-${i}`}
+                  role="option"
+                  aria-selected={off === 0}
+                  className="absolute inset-x-0 grid"
+                  style={{
+                    top: i * STEP,
+                    height: STEP,
+                    gridTemplateColumns: `${GUTTER}px 1fr`,
+                    // Everything past the reach is gone rather than merely
+                    // faint: a deck you can see the whole of is a list.
+                    opacity: away > REACH ? 0 : 1 - away * 0.38,
+                    transition: 'opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
+                  }}
+                >
+                  <div className="relative">
+                    {lanes.map(({ lane, seg }) =>
+                      seg ? (
+                        <Line key={lane} lane={lane} from={seg.from} to={seg.to} />
+                      ) : null,
+                    )}
+                    {wipFork?.row === i && (
+                      <Curve a={1} b={0} top={NODE_Y} height={CURVE} tint={1} />
+                    )}
+                    {eduMerge?.row === i && (
+                      <Curve a={0} b={2} top={0} height={NODE_Y} tint={2} />
+                    )}
+                    {eduFork?.row === i && (
+                      <Curve a={2} b={0} top={NODE_Y} height={CURVE} tint={2} />
+                    )}
+                    <Node lane={commit.lane} head={commit.head} focused={off === 0} />
+                  </div>
+
+                  {/* Only the text column scales, so the graph beside it cannot
+                      be pulled out of true. */}
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setIndex(i)}
+                    className="deck-card flex h-full min-w-0 items-center text-left"
+                    style={{
+                      transform: `scale(${off === 0 ? ZOOM : 1 - away * FALLOFF})`,
+                      cursor: off === 0 ? 'default' : 'pointer',
+                    }}
+                  >
+                    <Card commit={commit} focused={off === 0} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Softens the top and bottom edges so commits leave the deck rather
+              than being cut off by it. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background: `linear-gradient(var(--color-bg), transparent ${STEP * 0.9}px, transparent calc(100% - ${STEP * 0.9}px), var(--color-bg))`,
+            }}
+          />
+        </div>
+      </Reveal>
+
+      {/* What the focused commit did. Keyed, so it crossfades in as the deck
+          settles rather than swapping under the reader. */}
+      <div className="mt-5 border-t border-line pt-5">
+        <div key={current.id} className="deck-detail min-h-[6rem]">
+          {current.body}
+          {current.stack?.length ? (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {current.stack.map((tech) => (
+                <Tag key={tech} name={tech} />
+              ))}
             </div>
-          </Reveal>
-        )
-      })}
-    </ol>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex items-center gap-3">
+          <Step label="↑" onClick={() => move(-1)} disabled={index === 0} />
+          <Step label="↓" onClick={() => move(1)} disabled={index === last} />
+          <span className="meta text-dim">
+            {index + 1} / {commits.length}
+          </span>
+        </div>
+      </div>
+    </div>
   )
 }
 
-/** The commit dot. Ringed in the page background so the lane line stops at it
- *  rather than running underneath. It fills and grows with its row, and settles
- *  back with the rest of the list when another row has the pointer. */
-function Node({
-  lane,
-  head,
-  active,
-  dim,
+/** One step through the deck, for anyone not using a wheel. */
+function Step({
+  label,
+  onClick,
+  disabled,
 }: {
-  lane: number
-  head?: boolean
-  active?: boolean
-  dim?: boolean
+  label: string
+  onClick: () => void
+  disabled: boolean
 }) {
   return (
-    <span
-      aria-hidden="true"
-      className="commit absolute"
-      style={{
-        left: LANE_X[lane] - 5.5,
-        top: NODE_Y - 5.5,
-        transformOrigin: 'center',
-        transform: active ? 'scale(1.5)' : dim ? `scale(${RECEDE})` : undefined,
-        opacity: dim ? 0.42 : 1,
-      }}
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="meta flex h-8 w-8 items-center justify-center rounded-full border border-line text-dim transition-colors hover:border-p-ink/50 hover:text-p-ink disabled:opacity-35 disabled:hover:border-line disabled:hover:text-dim"
     >
-      <span
-        className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg transition-colors duration-200"
-        style={{
-          background: head || active ? laneColor(lane) : 'var(--color-bg)',
-          boxShadow: `inset 0 0 0 2px ${laneColor(lane)}`,
-        }}
-      >
-        {/* The ring that marks the work still in progress. */}
-        {head && (
-          <span
-            className="pulse absolute inset-0 rounded-full"
-            style={{ ['--pulse-color' as string]: laneColor(lane) }}
-          />
-        )}
-      </span>
-    </span>
+      {label}
+    </button>
   )
 }
 
-function Row({
-  commit,
-  open,
-  lit,
-  dim,
-  onActive,
-}: {
-  commit: Commit
-  open: boolean
-  lit: boolean
-  dim: boolean
-  onActive: (on: boolean) => void
-}) {
-  const foldable = Boolean(commit.body || commit.stack?.length)
-
-  const head = (
-    <div className="min-w-0 flex-1">
-      <div className="meta flex flex-wrap items-center gap-x-2 gap-y-1 text-dim">
-        <span className="text-p-ink">{shortHash(commit.id)}</span>
-        <span aria-hidden="true">·</span>
+/** A commit's one line in the deck. */
+function Card({ commit, focused }: { commit: Commit; focused: boolean }) {
+  return (
+    <span className="min-w-0 flex-1">
+      <span className="meta flex flex-wrap items-center gap-x-2 text-dim">
         <span>{commit.when}</span>
         {commit.ref && (
           <span
@@ -380,103 +431,65 @@ function Row({
             {commit.ref}
           </span>
         )}
-      </div>
-      <div className="mt-1 text-[0.9375rem] leading-snug font-medium text-text">
+      </span>
+      <span
+        className={`mt-0.5 block truncate text-[0.9375rem] leading-snug transition-[font-weight] ${
+          focused ? 'font-semibold text-text' : 'font-medium text-dim'
+        }`}
+      >
         {commit.title}
-      </div>
-      {(commit.where || commit.meta) && (
-        <div className="meta mt-0.5 text-dim">
+      </span>
+      <span className="meta mt-0.5 flex items-center gap-2 text-dim">
+        <span className="truncate">
           {[commit.where, commit.meta].filter(Boolean).join(' · ')}
-        </div>
-      )}
-    </div>
-  )
-
-  const stackDots = commit.stack?.length ? (
-    <span className="flex shrink-0 gap-1 pt-1">
-      {commit.stack.slice(0, 5).map((tech) => (
-        <Dot key={tech} name={tech} />
-      ))}
+        </span>
+        {commit.stack?.length ? (
+          <span className="flex shrink-0 gap-1">
+            {commit.stack.slice(0, 4).map((tech) => (
+              <Dot key={tech} name={tech} />
+            ))}
+          </span>
+        ) : null}
+      </span>
     </span>
-  ) : null
-
-  const inner = (
-    <>
-      {head}
-      {stackDots}
-    </>
-  )
-
-  const shell = 'px-2'
-
-  const detail = (
-    <div className="space-y-3 pt-1 pb-4 pl-px">
-      {commit.body}
-      {commit.stack?.length ? (
-        <div className="flex flex-wrap gap-1.5">
-          {commit.stack.map((tech) => (
-            <Tag key={tech} name={tech} />
-          ))}
-        </div>
-      ) : null}
-    </div>
-  )
-
-  // Pointer rather than mouse events, so a tap — which fires a synthetic
-  // mouseenter that never gets a matching leave — cannot leave a row stuck
-  // lifted on a phone, where the scroll position is what drives it. Focus
-  // counts too: the folds are keyboard-operable.
-  const mouse = (e: PointerEvent) => e.pointerType === 'mouse'
-  const on = {
-    onPointerEnter: (e: PointerEvent) => mouse(e) && onActive(true),
-    onPointerLeave: (e: PointerEvent) => mouse(e) && onActive(false),
-    onFocus: () => onActive(true),
-    onBlur: () => onActive(false),
-  }
-
-  return (
-    // The lift stays modest on purpose: enough to separate the row from the
-    // ones around it, small enough that the type does not go soft.
-    <div
-      className="commit pb-6"
-      // The lit commit comes forward a little; everything else settles back.
-      style={{
-        transform: lit ? `scale(${ZOOM})` : dim ? `scale(${RECEDE})` : undefined,
-        opacity: dim ? 0.42 : 1,
-        zIndex: lit ? 20 : undefined,
-      }}
-      {...on}
-    >
-      {foldable ? (
-        <details open={open} className={`group ${shell}`}>
-          <summary className="flex cursor-pointer list-none items-start gap-3 py-1">
-            {inner}
-            <span
-              aria-hidden="true"
-              className="meta shrink-0 pt-1 text-dim transition-transform group-open:rotate-90"
-            >
-              ›
-            </span>
-          </summary>
-          {detail}
-        </details>
-      ) : (
-        <div className={`flex items-start gap-3 py-1 ${shell}`}>{inner}</div>
-      )}
-    </div>
   )
 }
 
-/**
- * A stable seven-character hash for an entry. It is decoration — the point is
- * that the same job always carries the same hash, not that it means anything —
- * so a cheap FNV-1a is exactly enough.
- */
-function shortHash(id: string): string {
-  let h = 0x811c9dc5
-  for (let i = 0; i < id.length; i++) {
-    h ^= id.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return (h >>> 0).toString(16).padStart(8, '0').slice(0, 7)
+/** The commit dot. Ringed in the page background so the lane line stops at it
+ *  rather than running underneath; filled while its commit has the deck. */
+function Node({
+  lane,
+  head,
+  focused,
+}: {
+  lane: number
+  head?: boolean
+  focused: boolean
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="deck-node absolute"
+      style={{
+        left: LANE_X[lane] - 5.5,
+        top: NODE_Y - 5.5,
+        transform: focused ? 'scale(1.5)' : undefined,
+      }}
+    >
+      <span
+        className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg transition-colors duration-300"
+        style={{
+          background: head || focused ? laneColor(lane) : 'var(--color-bg)',
+          boxShadow: `inset 0 0 0 2px ${laneColor(lane)}`,
+        }}
+      >
+        {head && (
+          <span
+            className="pulse absolute inset-0 rounded-full"
+            style={{ ['--pulse-color' as string]: laneColor(lane) }}
+          />
+        )}
+      </span>
+    </span>
+  )
 }

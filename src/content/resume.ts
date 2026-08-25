@@ -383,9 +383,6 @@ export const ui = {
     viewWork: { de: 'Werdegang ansehen', en: 'See the history' } satisfies T,
   },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
-  /** The cue at the foot of a section, which is also where the scroll goes. */
-  next: { de: 'Weiter', en: 'Next' } satisfies T,
-  prev: { de: 'Zurück', en: 'Previous' } satisfies T,
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
   themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
