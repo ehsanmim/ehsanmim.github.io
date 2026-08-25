@@ -123,6 +123,27 @@
     text-decoration-color: var(--color-p-ink);
   }
 
+  /* A commit in the graph. Hovering lifts the one under the pointer a little
+   * and settles the rest back — the transform is on the text column only, so
+   * the lanes it sits beside never move. Slow and eased, because the whole
+   * point is that it is calm. */
+  .commit {
+    transform-origin: left center;
+    will-change: transform, opacity, filter;
+    transition:
+      transform 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.36s ease,
+      filter 0.36s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .commit {
+      transform: none !important;
+      filter: none !important;
+      transition: opacity 0.2s ease;
+    }
+  }
+
   /* The availability dot, on the hero. */
   .pulse::before {
     content: '';

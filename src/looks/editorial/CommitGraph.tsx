@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { Reveal } from '../../lib/reveal'
 import { Dot, Tag } from './visuals'
 
@@ -41,7 +41,9 @@ const LANE_VAR = ['--color-p', '--color-wip', '--color-edu']
 const NODE_Y = 21
 /** How far a fork takes to travel between lanes. */
 const CURVE = 24
-const GUTTER = 56
+/* Wider than the lanes need: the slack is the gap between the graph and the
+ * commit, which the lanes would otherwise sit right up against. */
+const GUTTER = 76
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -113,6 +115,46 @@ function Curve({
 }
 
 export function CommitGraph({ commits }: { commits: Commit[] }) {
+  // Held here rather than in the row: the node is drawn in the gutter and the
+  // row in the column beside it, and both have to answer to the same pointer.
+  // Two sources, and the pointer always wins.
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [scrolled, setScrolled] = useState<string | null>(null)
+  const active = hovered ?? scrolled
+  const list = useRef<HTMLOListElement>(null)
+
+  // A touch device has no hover to give, so the commit crossing the middle of
+  // the screen is the one that lifts — scrolling the list is the touch
+  // equivalent of running down it with a cursor.
+  const [coarse, setCoarse] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(hover: none)')
+    const read = () => setCoarse(mq.matches)
+    read()
+    mq.addEventListener('change', read)
+    return () => mq.removeEventListener('change', read)
+  }, [])
+
+  useEffect(() => {
+    if (!coarse) return
+    const rows = list.current?.querySelectorAll<HTMLElement>('[data-commit]')
+    if (!rows?.length) return
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const hit = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0]
+        if (hit) setScrolled(hit.target.getAttribute('data-commit'))
+      },
+      // Between two rows nothing crosses the band; the last one stays lifted
+      // rather than the whole list flickering back in the gap.
+      { rootMargin: '-45% 0px -45% 0px', threshold: 0 },
+    )
+    rows.forEach((row) => io.observe(row))
+    return () => io.disconnect()
+  }, [coarse, commits])
+
   const rowsOf = (lane: Lane) =>
     commits.reduce<number[]>((rows, c, i) => (c.lane === lane ? [...rows, i] : rows), [])
   const main = rowsOf(0)
@@ -153,7 +195,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
   })()
 
   return (
-    <ol className="relative">
+    <ol ref={list} className="relative">
       {commits.map((commit, i) => {
         const lanes = [
           { lane: 0, seg: segment(mainSpan, i) },
@@ -163,7 +205,11 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
 
         return (
           <Reveal as="li" key={commit.id} delay={Math.min(i, 6) * 55}>
-            <div className="grid" style={{ gridTemplateColumns: `${GUTTER}px 1fr` }}>
+            <div
+              data-commit={commit.id}
+              className="grid"
+              style={{ gridTemplateColumns: `${GUTTER}px 1fr` }}
+            >
               <div className="relative">
                 {lanes.map(({ lane, seg }) =>
                   seg ? <Line key={lane} lane={lane} from={seg.from} to={seg.to} /> : null,
@@ -177,10 +223,21 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
                 {eduFork?.row === i && (
                   <Curve a={2} b={0} top={NODE_Y} height={CURVE} tint={2} />
                 )}
-                <Node lane={commit.lane} head={commit.head} />
+                <Node
+                  lane={commit.lane}
+                  head={commit.head}
+                  active={active === commit.id}
+                  dim={active !== null && active !== commit.id}
+                />
               </div>
 
-              <Row commit={commit} open={i === 0} />
+              <Row
+                commit={commit}
+                open={i === 0}
+                active={active === commit.id}
+                dim={active !== null && active !== commit.id}
+                onActive={(on) => setHovered(on ? commit.id : null)}
+              />
             </div>
           </Reveal>
         )
@@ -190,19 +247,38 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
 }
 
 /** The commit dot. Ringed in the page background so the lane line stops at it
- *  rather than running underneath. */
-function Node({ lane, head }: { lane: number; head?: boolean }) {
+ *  rather than running underneath. It fills and grows with its row, and settles
+ *  back with the rest of the list when another row has the pointer. */
+function Node({
+  lane,
+  head,
+  active,
+  dim,
+}: {
+  lane: number
+  head?: boolean
+  active?: boolean
+  dim?: boolean
+}) {
   return (
     <span
       aria-hidden="true"
-      className="absolute"
-      style={{ left: LANE_X[lane] - 5.5, top: NODE_Y - 5.5 }}
+      className="commit absolute"
+      style={{
+        left: LANE_X[lane] - 5.5,
+        top: NODE_Y - 5.5,
+        transformOrigin: 'center',
+        transform: active ? 'scale(1.45)' : undefined,
+        opacity: dim ? 0.4 : 1,
+      }}
     >
       <span
-        className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg"
+        className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg transition-colors duration-200"
         style={{
-          background: head ? laneColor(lane) : 'var(--color-bg)',
-          boxShadow: `inset 0 0 0 2px ${laneColor(lane)}`,
+          background: head || active ? laneColor(lane) : 'var(--color-bg)',
+          boxShadow: active
+            ? `inset 0 0 0 2px ${laneColor(lane)}, 0 0 0 5px color-mix(in oklab, ${laneColor(lane)} 22%, transparent), 0 0 14px 2px color-mix(in oklab, ${laneColor(lane)} 45%, transparent)`
+            : `inset 0 0 0 2px ${laneColor(lane)}`,
         }}
       >
         {/* The ring that marks the work still in progress. */}
@@ -217,8 +293,19 @@ function Node({ lane, head }: { lane: number; head?: boolean }) {
   )
 }
 
-function Row({ commit, open }: { commit: Commit; open: boolean }) {
-  const [hover, setHover] = useState(false)
+function Row({
+  commit,
+  open,
+  active,
+  dim,
+  onActive,
+}: {
+  commit: Commit
+  open: boolean
+  active: boolean
+  dim: boolean
+  onActive: (on: boolean) => void
+}) {
   const foldable = Boolean(commit.body || commit.stack?.length)
 
   const head = (
@@ -265,7 +352,24 @@ function Row({ commit, open }: { commit: Commit; open: boolean }) {
     </>
   )
 
-  const shell = `-mx-2 rounded-lg px-2 transition-colors ${hover ? 'bg-p-wash/70' : ''}`
+  const lane = laneColor(commit.lane)
+  // The backdrop the lifted commit sits on. Negative margins cancel the padding
+  // for layout, so the card is bigger than the row's flow box without moving a
+  // single pixel of content when it appears.
+  const shell =
+    '-mx-3 -my-2 rounded-xl px-3 py-2 transition-[background-color,box-shadow,backdrop-filter] duration-300'
+  const shellStyle = active
+    ? {
+        background: 'color-mix(in oklab, var(--color-surface) 88%, transparent)',
+        backdropFilter: 'blur(8px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(8px) saturate(1.4)',
+        boxShadow: [
+          `0 20px 44px -20px color-mix(in oklab, ${lane} 70%, transparent)`,
+          `0 2px 10px -6px color-mix(in oklab, ${lane} 60%, transparent)`,
+          `inset 0 0 0 1px color-mix(in oklab, ${lane} 30%, transparent)`,
+        ].join(', '),
+      }
+    : { background: 'transparent' }
 
   const detail = (
     <div className="space-y-3 pt-1 pb-4 pl-px">
@@ -280,15 +384,36 @@ function Row({ commit, open }: { commit: Commit; open: boolean }) {
     </div>
   )
 
+  // Pointer rather than mouse events, so a tap — which fires a synthetic
+  // mouseenter that never gets a matching leave — cannot leave a row stuck
+  // lifted on a phone, where the scroll position is what drives it. Focus
+  // counts too: the folds are keyboard-operable.
+  const mouse = (e: PointerEvent) => e.pointerType === 'mouse'
   const on = {
-    onMouseEnter: () => setHover(true),
-    onMouseLeave: () => setHover(false),
+    onPointerEnter: (e: PointerEvent) => mouse(e) && onActive(true),
+    onPointerLeave: (e: PointerEvent) => mouse(e) && onActive(false),
+    onFocus: () => onActive(true),
+    onBlur: () => onActive(false),
   }
 
   return (
-    <div className="pb-6" {...on}>
+    // The lift stays modest on purpose: enough to separate the row from the
+    // ones around it, small enough that the type does not go soft.
+    <div
+      className="commit relative pb-6"
+      style={{
+        // Lifted and in front; or pushed back, faded and thrown out of focus,
+        // which is what makes the lifted one read as being in front rather
+        // than merely bigger.
+        transform: active ? 'scale(1.04)' : dim ? 'scale(0.985)' : undefined,
+        opacity: dim ? 0.4 : 1,
+        filter: dim ? 'blur(1.4px)' : undefined,
+        zIndex: active ? 20 : undefined,
+      }}
+      {...on}
+    >
       {foldable ? (
-        <details open={open} className={`group ${shell}`}>
+        <details open={open} className={`group ${shell}`} style={shellStyle}>
           <summary className="flex cursor-pointer list-none items-start gap-3 py-1">
             {inner}
             <span
@@ -301,7 +426,9 @@ function Row({ commit, open }: { commit: Commit; open: boolean }) {
           {detail}
         </details>
       ) : (
-        <div className={`flex items-start gap-3 py-1 ${shell}`}>{inner}</div>
+        <div className={`flex items-start gap-3 py-1 ${shell}`} style={shellStyle}>
+          {inner}
+        </div>
       )}
     </div>
   )
