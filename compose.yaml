@@ -1,0 +1,54 @@
+# The project's compose file. `site gen --copy` renders the slot file from this
+# one (adding the app + www routers and the `web` network); the slot file at
+# ~/web/.platform/configs/projects/cv/e.test.yml is the truth from then on.
+#
+# Nothing is published on the host — every hostname here is routed by Traefik,
+# so this stack cannot collide with another slot on a port.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /app
+    # The dev server IS the service: `site up` and the app is live at
+    # https://e.test with HMR. There is no separate `site dev` to remember —
+    # and because --strictPort is on, a second one would fail loudly rather
+    # than quietly bind 5174 where no router points.
+    command: >
+      sh -c "pnpm install --frozen-lockfile &&
+             exec pnpm exec vite --host --port 5173 --strictPort"
+    environment:
+      VITE_PORT: '5173'
+      VITE_DEV_SERVER_URL: https://e-vite.test
+      # Set to 1 if edits on the host stop reaching the container's watcher.
+      # VITE_POLL: '1'
+    expose:
+      - '5173'
+    labels:
+      # `site gen` writes the app and www routers; the -vite router is always
+      # hand-written (see the other slots). Here it points at the same server
+      # the apex does, so site_vite_host still finds a dev-server hostname.
+      traefik.http.routers.cv-e-test-vite.rule: Host(`e-vite.test`)
+      traefik.http.routers.cv-e-test-vite.entrypoints: websecure
+      traefik.http.routers.cv-e-test-vite.tls: 'true'
+      traefik.http.routers.cv-e-test-vite.tls.certresolver: stepca
+      traefik.http.routers.cv-e-test-vite.service: cv-e-test-vite
+      traefik.http.services.cv-e-test-vite.loadbalancer.server.port: '5173'
+    networks:
+      - web
+    restart: unless-stopped
+    volumes:
+      - .:/app
+
+networks:
+  web:
+    external: true
+    name: web
+
+x-site:
+  service: app
+  run_user: node
+  app_path: /app
+  foreign_prune:
+    - node_modules
