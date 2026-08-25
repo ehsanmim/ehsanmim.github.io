@@ -1,22 +1,11 @@
 @import 'tailwindcss';
 
 /* ── Design tokens ──────────────────────────────────────────────────────────
- * An editorial dark palette: near-black paper, warm off-white ink, one warm
- * sand accent. Warm rather than blue-grey on purpose — it is what separates a
- * magazine page from a dashboard.
+ * An editor's palette. `c-` prefixed throughout, from when a second look shared
+ * this file.
  */
 @theme {
-  --color-paper: #0b0b0c;
-  --color-paper-raised: #121214;
-  --color-ink: #ece9e4;
-  --color-ink-muted: #9a958d;
-  --color-ink-faint: #5d5a55;
-  --color-rule: #232326;
-  --color-accent: #d8a657;
-  --color-accent-dim: #8a6a38;
-
-  /* The code look's palette: an editor's, not the editorial one. Prefixed
-   * `c-` so the two never get mixed by accident in a component. */
+  /* The editor palette. */
   --color-c-bg: #0b0e14;
   --color-c-panel: #10141d;
   --color-c-line: #1e2534;
@@ -28,14 +17,8 @@
   --color-c-num: #79c0ff;
   --color-c-ok: #7ee787;
 
-  --font-display: 'Instrument Serif', ui-serif, Georgia, 'Times New Roman', serif;
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  /* Dates and tech tags only — the engineer's fingerprint on an editorial page. */
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-
-  /* Display sizes large enough to read as typography rather than as headings. */
-  --text-display: clamp(2.75rem, 9vw, 7.5rem);
-  --text-section: clamp(1.9rem, 4.2vw, 3.25rem);
 }
 
 @layer base {
@@ -45,8 +28,7 @@
 
   html {
     scroll-behavior: smooth;
-    /* The sticky nav must not cover the heading an anchor jumps to. */
-    scroll-padding-top: 6rem;
+    scroll-padding-top: 2rem;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -57,59 +39,27 @@
   }
 
   body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
+    background-color: var(--color-c-bg);
+    color: var(--color-c-text);
     font-family: var(--font-sans);
     font-synthesis-weight: none;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* The page behind the content has to match the skin in front of it. The
-   * attribute is set by LookProvider. */
-  :root[data-look='code'] body {
-    background-color: var(--color-c-bg);
-    color: var(--color-c-text);
-  }
-
   ::selection {
-    background: var(--color-accent);
-    color: var(--color-paper);
-  }
-
-  :root[data-look='code'] ::selection {
     background: var(--color-c-ok);
     color: var(--color-c-bg);
   }
 
-  :root[data-look='code'] :focus-visible {
-    outline-color: var(--color-c-ok);
-  }
-
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-c-ok);
     outline-offset: 3px;
     border-radius: 2px;
   }
 }
 
 @layer components {
-  /* Small caps-ish label above every section heading. */
-  .eyebrow {
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--color-ink-faint);
-  }
-
-  .display {
-    font-family: var(--font-display);
-    font-weight: 400;
-    line-height: 0.95;
-    letter-spacing: -0.02em;
-  }
-
   /* The terminal's resting cursor. */
   .caret {
     animation: caret-blink 1.15s steps(1, end) infinite;
@@ -119,6 +69,31 @@
     .caret {
       animation: none;
     }
+  }
+}
+
+/* The chart arrives late — it is a lazily loaded chunk — so it fades in
+ * rather than appearing mid-read as a hard cut. */
+@layer components {
+  .chart-in {
+    animation: chart-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chart-in {
+      animation: none;
+    }
+  }
+}
+
+@keyframes chart-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 

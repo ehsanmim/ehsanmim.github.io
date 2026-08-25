@@ -1,20 +1,26 @@
-/* eslint-disable react/jsx-key --
- * The arrays here are "lines of a file", not a rendered list: CodeBlock puts
- * each one inside its own keyed row, so a key on the member would be dead
- * weight. Verified against React's runtime key warning, which does not fire. */
 import {
   about,
   contact,
   education,
   experience,
+  languages,
+  period,
   profile,
   projects,
   skills,
   ui,
 } from '../../content/resume'
+import { Suspense, lazy, useState } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
-import { C, CodeBlock, CodeSection, F, K, N, P, Str } from './primitives'
+import { C } from './primitives'
+/* Recharts is ~100 kB gzipped and appears on this one tab. Split out, so the
+   first paint of the CV does not carry a charting library it may never use. */
+const TimelineChart = lazy(() =>
+  import('./TimelineChart').then((m) => ({ default: m.TimelineChart })),
+)
+import { DiffLines, Dot, SkillRow, Tag } from './visuals'
+
 
 /* ── hero: a terminal session ─────────────────────────────────────────────── */
 
@@ -26,298 +32,395 @@ function Prompt({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Every panel's padding, in one place. The shell draws the frame. */
+function Panel({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className="p-3 sm:p-6">
+      {children}
+    </div>
+  )
+}
+
 export function CodeHero() {
   const { t } = useLang()
 
   return (
-    <section
-      id="top"
-      className="mx-auto max-w-4xl px-4 pt-24 pb-10 sm:px-6 sm:pt-28"
-    >
+    <Panel id="top">
       <Reveal>
-        <div className="overflow-hidden rounded-lg border border-c-line bg-c-panel">
-          <div className="flex items-center gap-3 border-b border-c-line px-4 py-2.5">
-            <span className="flex gap-1.5" aria-hidden="true">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-            </span>
-            <span className="font-mono text-xs text-c-dim">
-              {profile.name.split(' ')[0].toLowerCase()}@web — zsh
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <div className="space-y-1 p-5 font-mono text-[0.8125rem] leading-[1.9] sm:p-6">
-              <div>
-                <Prompt>whoami</Prompt>
-              </div>
-              <div className="text-c-ok">
-                {profile.name} — {t(profile.role)}
-              </div>
-
-              <div className="pt-3">
-                <Prompt>cat intro.txt</Prompt>
-              </div>
-              <p className="max-w-2xl whitespace-normal text-c-text">
-                {t(profile.intro)}
-              </p>
-
-              <div className="pt-3">
-                <Prompt>stats --short</Prompt>
-              </div>
-              {profile.facts.map((fact) => (
-                <div key={fact.value} className="flex gap-4">
-                  <span className="w-24 shrink-0 text-c-num">{fact.value}</span>
-                  <span className="text-c-dim">{t(fact.label)}</span>
-                </div>
-              ))}
-
-              <div className="pt-3">
-                <Prompt>contact --email</Prompt>
-              </div>
-              <div>
-                <a
-                  href={`mailto:${profile.email}`}
-                  className="text-c-str underline underline-offset-4 transition-colors hover:text-c-ok"
-                >
-                  {profile.email}
-                </a>
-                {profile.links.map((link) => (
-                  <a
-                    key={link.label}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ml-4 text-c-dim transition-colors hover:text-c-text"
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2 pt-3">
-                <Prompt>
-                  <span className="text-c-dim">
-                    {/* The status line doubles as the resting prompt. */}
-                    {t(profile.availability).toLowerCase()}
-                  </span>
-                </Prompt>
-                <span className="caret inline-block h-4 w-2 bg-c-ok align-middle" />
-              </div>
+        <div className="space-y-1 font-mono text-[0.8125rem] leading-[1.85]">
+            <div>
+              <Prompt>whoami</Prompt>
             </div>
-          </div>
+            <div className="text-c-ok">
+              {profile.name} — {t(profile.role)}
+            </div>
+
+            <div className="pt-2">
+              <Prompt>cat intro.txt</Prompt>
+            </div>
+            <p className="max-w-2xl text-c-text">{t(profile.intro)}</p>
+
+            {/* The metrics as a single row rather than three lines: on a phone
+                the stacked version cost a third of the first screen. */}
+            <div className="flex flex-wrap gap-x-6 gap-y-2 pt-3">
+              {profile.facts.map((fact) => (
+                <span key={fact.value} className="flex items-baseline gap-2">
+                  <span className="text-c-num">{fact.value}</span>
+                  <span className="text-[0.6875rem] text-c-dim">{t(fact.label)}</span>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-3">
+              <a
+                href={`mailto:${profile.email}`}
+                className="text-c-str underline underline-offset-4 transition-colors hover:text-c-ok"
+              >
+                {profile.email}
+              </a>
+              {profile.links.map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-c-dim transition-colors hover:text-c-text"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 pt-3">
+              <Prompt>
+                <span className="text-c-dim">
+                  {t(profile.availability).toLowerCase()}
+                </span>
+              </Prompt>
+              <span className="caret inline-block h-4 w-2 bg-c-ok align-middle" />
+            </div>
         </div>
       </Reveal>
-    </section>
+    </Panel>
   )
 }
 
-/* ── about.ts: a doc comment ──────────────────────────────────────────────── */
+/* ── about.ts: a doc comment, set as prose ────────────────────────────────── */
 
 export function CodeAbout() {
   const { t } = useLang()
-  const paras = t(about.body)
 
   return (
-    <CodeSection id="about" label={t(about.eyebrow).toLowerCase()}>
+    <Panel id="about">
       <Reveal>
-        <CodeBlock
-          file="about.ts"
-          lines={[
-            <C>/**</C>,
-            <C> * {t(about.heading)}</C>,
-            <C> *</C>,
-            ...paras.flatMap((para) => [
-              <C className="whitespace-normal"> * {para}</C>,
-              <C> *</C>,
-            ]),
-            <C> */</C>,
-            <>
-              <K>export const</K> <F>location</F> <P>=</P> <Str>{t(profile.location)}</Str>
-              <P>;</P>
-            </>,
-          ]}
-        />
+        <div>
+
+          {/* Prose, not quoted string literals on numbered lines: a paragraph
+              broken into "…" fragments with hanging indents reads as noise,
+              and the point of this section is that it gets read. The comment
+              delimiters carry the file metaphor on their own. */}
+          <div className="font-mono text-[0.8125rem] leading-relaxed">
+            <p className="text-c-dim/70">/**</p>
+            <div className="my-2 space-y-3 border-l-2 border-c-dim/25 pl-4">
+              <p className="text-c-text">{t(about.heading)}</p>
+              {t(about.body).map((para) => (
+                <p key={para.slice(0, 24)} className="text-c-dim italic">
+                  {para}
+                </p>
+              ))}
+            </div>
+            <p className="text-c-dim/70">*/</p>
+          </div>
+        </div>
       </Reveal>
-    </CodeSection>
+    </Panel>
   )
 }
 
-/* ── experience.ts: an array of objects ───────────────────────────────────── */
+/* ── experience: a timeline bar + foldable entries ────────────────────────── */
+
+/** Stable per-job key, shared by the timeline bar and its entry. */
+const jobId = (job: { company: string; start: string | null }) =>
+  `${job.company}-${job.start ?? 'undated'}`
 
 export function CodeExperience() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
+  const present = t(ui.present)
+  // Hovering an entry's years holds its bar in the timeline and fades the rest.
+  const [activeId, setActiveId] = useState<string | null>(null)
 
-  const lines: React.ReactNode[] = [
-    <>
-      <K>const</K> <F>experience</F><P>:</P> <span className="text-c-fn">Job</span>
-      <P>[] = [</P>
-    </>,
+  // One chart: the roles, then the studies that ran alongside them.
+  const spans = [
+    ...experience.map((job) => ({
+      id: jobId(job),
+      label: job.company,
+      detail: t(job.role),
+      periodLabel: period(job, lang, present),
+      start: job.start,
+      end: job.end,
+    })),
+    ...education
+      .filter((e) => e.chart !== false)
+      .map((e) => ({
+        id: `edu-${e.what.de}`,
+        // The qualification, not the institution: "B.Sc. Maschinenbau" says
+        // what the years bought; the university's full legal name does not.
+        label: t(e.what),
+        short: e.short,
+        detail: e.where || undefined,
+        periodLabel: period(e, lang, present),
+        start: e.start ?? null,
+        end: e.end,
+        tone: e.kind === 'language' ? ('language' as const) : ('degree' as const),
+      })),
   ]
 
-  experience.forEach((job) => {
-    lines.push(
-      <P>{'  {'}</P>,
-      <>
-        {'    '}
-        <span className="text-c-num">period</span>
-        <P>: </P>
-        <Str>{job.period}</Str>
-        <P>,</P>
-      </>,
-      <>
-        {'    '}
-        <span className="text-c-num">role</span>
-        <P>: </P>
-        <Str>{t(job.role)}</Str>
-        <P>,</P>
-      </>,
-      <>
-        {'    '}
-        <span className="text-c-num">company</span>
-        <P>: </P>
-        <Str>{job.company}</Str>
-        <P>, </P>
-        <C>// {t(job.location)}</C>
-      </>,
-      <>
-        {'    '}
-        <span className="text-c-num">stack</span>
-        <P>: [</P>
-        {job.stack.map((s, i) => (
-          <span key={s}>
-            <Str>{s}</Str>
-            {i < job.stack.length - 1 && <P>, </P>}
-          </span>
-        ))}
-        <P>],</P>
-      </>,
-      <>
-        {'    '}
-        <span className="text-c-num">impact</span>
-        <P>: [</P>
-      </>,
-      ...t(job.bullets).map((b) => (
-        <>
-          {'      '}
-          <Str>{b}</Str>
-          <P>,</P>
-        </>
-      )),
-      <P>{'    ],'}</P>,
-      <P>{'  },'}</P>,
-    )
-  })
-
-  lines.push(
-    <P>];</P>,
-    <>&nbsp;</>,
-    <C>// {t(ui.sections.education).toLowerCase()}</C>,
-    ...education.map((e) => (
-      <>
-        <K>const</K> <F>degree</F> <P>=</P> <Str>{t(e.what)}</Str>
-        <P>;</P>{' '}
-        <C>
-          // {e.where}, {e.period}
-        </C>
-      </>
-    )),
-  )
-
   return (
-    <CodeSection id="experience" label={t(ui.sections.experience).toLowerCase()}>
+    <Panel id="experience">
       <Reveal>
-        <CodeBlock file="experience.ts" lines={lines} />
+        <div className="mb-5 rounded-lg border border-c-line bg-c-panel p-2 sm:p-5">
+          {/* Reserves the chart's height so the panel does not jump when the
+              chunk lands. */}
+          <Suspense fallback={<div style={{ height: spans.length * 30 + 28 }} />}>
+            <TimelineChart
+              spans={spans}
+              presentLabel={present}
+              activeId={activeId}
+              onHover={setActiveId}
+            />
+          </Suspense>
+        </div>
       </Reveal>
-    </CodeSection>
+
+      {/* <details> rather than React state: it folds without JS, it is
+          keyboard- and screen-reader-correct for free, and the current role is
+          the only one open — which is what makes this fit on a phone. */}
+      <ul className="space-y-2">
+        {experience.map((job, i) => {
+          const bullets = t(job.bullets)
+          // An entry with neither detail nor a stack has nothing to unfold.
+          // Rendering it as <details> anyway gives a disclosure arrow that
+          // opens an empty box — worse than not offering the fold at all.
+          const foldable = bullets.length > 0 || job.stack.length > 0
+
+          const head = (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-[0.8125rem] text-c-text">
+                  {t(job.role)}
+                </span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[0.6875rem] text-c-dim">
+                  <span className="text-c-str">{job.company}</span>
+                  <span>·</span>
+                  <span className="text-c-num">{period(job, lang, present)}</span>
+                  <span>·</span>
+                  <span>{t(job.location)}</span>
+                </span>
+              </span>
+              {/* Collapsed, the stack is still legible as colour alone. */}
+              <span className="flex shrink-0 gap-1">
+                {job.stack.slice(0, 5).map((tech) => (
+                  <Dot key={tech} name={tech} />
+                ))}
+              </span>
+            </>
+          )
+
+          const hover = {
+            onMouseEnter: () => setActiveId(jobId(job)),
+            onMouseLeave: () => setActiveId(null),
+            onFocus: () => setActiveId(jobId(job)),
+            onBlur: () => setActiveId(null),
+          }
+
+          // Open state is carried by an inset rail on the left edge rather
+          // than a disclosure triangle: it costs no horizontal space, which on
+          // a phone was the triangle's real price.
+          const frame = `group overflow-hidden rounded-lg border bg-c-panel transition-all duration-200 ${
+            foldable ? 'open:shadow-[inset_2px_0_0_0_var(--color-c-ok)]' : ''
+          } ${
+            activeId === jobId(job)
+              ? 'border-c-ok/70 bg-c-line/20'
+              : 'border-c-line hover:border-c-ok/40'
+          }`
+
+          return (
+            <Reveal as="li" key={jobId(job)} delay={i * 60}>
+              {foldable ? (
+                <details open={i === 0} {...hover} className={frame}>
+                  <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-3 transition-colors hover:bg-c-line/30 sm:px-4">
+                    {head}
+                  </summary>
+                  <div className="space-y-3 border-t border-c-line px-3 py-4 sm:px-4">
+                    {bullets.length > 0 && <DiffLines lines={bullets} />}
+                    {job.stack.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.stack.map((tech) => (
+                          <Tag key={tech} name={tech} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              ) : (
+                <div {...hover} tabIndex={0} className={frame}>
+                  <div className="flex items-center gap-2 px-3 py-3 sm:px-4">{head}</div>
+                </div>
+              )}
+            </Reveal>
+          )
+        })}
+      </ul>
+
+      <Reveal className="mt-8">
+        {/* Was a dim `# ausbildung` comment tucked under the roles, which read
+            as a footnote. It is a section of the CV, so it is headed like one. */}
+        <div className="rounded-lg border border-c-line bg-c-panel p-3 sm:p-4">
+          <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
+            {t(ui.sections.education)}
+          </h3>
+          <ul className="mt-3 divide-y divide-c-line/60">
+            {education.map((e) => (
+              <li
+                key={t(e.what)}
+                {...(e.chart === false
+                  ? {}
+                  : {
+                      tabIndex: 0,
+                      onMouseEnter: () => setActiveId(`edu-${e.what.de}`),
+                      onMouseLeave: () => setActiveId(null),
+                      onFocus: () => setActiveId(`edu-${e.what.de}`),
+                      onBlur: () => setActiveId(null),
+                    })}
+                className={`-mx-2 rounded px-2 py-2.5 transition-colors ${
+                  e.chart === false
+                    ? ''
+                    : activeId === `edu-${e.what.de}`
+                      ? 'bg-c-line/60'
+                      : 'hover:bg-c-line/40'
+                }`}
+              >
+                <div className="flex flex-wrap items-baseline gap-x-3">
+                  <span className="font-mono text-[0.8125rem] text-c-text">
+                    {t(e.what)}
+                  </span>
+                  <span className="font-mono text-[0.6875rem] text-c-num">
+                    {period(e, lang, present)}
+                  </span>
+                </div>
+                {(e.where || t(e.note)) && (
+                  <div className="mt-0.5 font-mono text-[0.6875rem] text-c-dim">
+                    {[e.where, t(e.note)].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Reveal>
+    </Panel>
   )
 }
 
-/* ── skills.json ──────────────────────────────────────────────────────────── */
+/* ── skills: the CV's own ratings, plus languages ─────────────────────────── */
 
 export function CodeSkills() {
   const { t } = useLang()
 
-  const lines: React.ReactNode[] = [<P>{'{'}</P>]
-  skills.forEach((group, gi) => {
-    lines.push(
-      <>
-        {'  '}
-        <Str>{t(group.group).toLowerCase()}</Str>
-        <P>: [</P>
-      </>,
-      ...group.items.map((item) => (
-        <>
-          {'    '}
-          <Str>{item}</Str>
-          <P>,</P>
-        </>
-      )),
-      <P>{gi < skills.length - 1 ? '  ],' : '  ]'}</P>,
-    )
-  })
-  lines.push(<P>{'}'}</P>)
-
   return (
-    <CodeSection id="skills" label={t(ui.sections.skills).toLowerCase()}>
-      <Reveal>
-        <CodeBlock file="skills.json" lines={lines} />
+    <Panel id="skills">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {skills.map((group, i) => (
+          <Reveal key={t(group.group)} delay={i * 50}>
+            <div className="h-full rounded-lg border border-c-line bg-c-panel p-3 sm:p-4">
+              <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
+                {t(group.group)}
+              </h3>
+              <ul className="mt-2 divide-y divide-c-line/60">
+                {group.items.map((item) => (
+                  <SkillRow key={item.name} name={item.name} level={item.level} />
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+
+      <Reveal delay={220} className="mt-2">
+        <p className="px-1 font-mono text-[0.6875rem] text-c-dim/70">
+          <C>// {t(ui.levelNote)}</C>
+        </p>
       </Reveal>
-    </CodeSection>
+
+      <Reveal delay={260} className="mt-4">
+        <div className="rounded-lg border border-c-line bg-c-panel p-3 sm:p-4">
+          <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
+            {t(ui.sections.languages)}
+          </h3>
+          <ul className="mt-2 divide-y divide-c-line/60">
+            {languages.map((l) => (
+              <li key={t(l.name)} className="flex flex-wrap items-baseline gap-x-3 py-1.5">
+                <span className="font-mono text-[0.75rem] text-c-text">{t(l.name)}</span>
+                <span className="rounded bg-c-ok/10 px-1.5 font-mono text-[0.6875rem] text-c-ok">
+                  {t(l.level)}
+                </span>
+                {t(l.note) && (
+                  <span className="font-mono text-[0.6875rem] text-c-dim">
+                    {t(l.note)}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Reveal>
+    </Panel>
   )
 }
 
-/* ── projects.md ──────────────────────────────────────────────────────────── */
+/* ── projects: compact cards ──────────────────────────────────────────────── */
 
 export function CodeProjects() {
   const { t } = useLang()
 
-  const lines: React.ReactNode[] = [
-    <>
-      <K># </K>
-      <span className="text-c-text">{t(ui.sections.projects)}</span>
-    </>,
-    <>&nbsp;</>,
-  ]
-
-  projects.forEach((p, i) => {
-    lines.push(
-      <>
-        <K>## </K>
-        {p.href ? (
-          <a
-            href={p.href}
-            target="_blank"
-            rel="noreferrer"
-            className="text-c-text underline underline-offset-4 hover:text-c-ok"
-          >
-            {p.name}
-          </a>
-        ) : (
-          <span className="text-c-text">{p.name}</span>
-        )}
-        <P> · </P>
-        <N>{p.year}</N>
-      </>,
-      <span className="whitespace-normal text-c-dim">{t(p.blurb)}</span>,
-      <>
-        {p.stack.map((s) => (
-          <span key={s} className="text-c-str">
-            `{s}`{' '}
-          </span>
-        ))}
-      </>,
-    )
-    if (i < projects.length - 1) lines.push(<>&nbsp;</>)
-  })
-
   return (
-    <CodeSection id="projects" label={t(ui.sections.projects).toLowerCase()}>
-      <Reveal>
-        <CodeBlock file="projects.md" lines={lines} />
-      </Reveal>
-    </CodeSection>
+    <Panel id="projects">
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {projects.map((project, i) => {
+          const Tag_ = project.href ? 'a' : 'div'
+          return (
+            <Reveal as="li" key={project.name} delay={i * 60}>
+              <Tag_
+                {...(project.href
+                  ? { href: project.href, target: '_blank', rel: 'noreferrer' }
+                  : {})}
+                className="block h-full rounded-lg border border-c-line bg-c-panel p-4 transition-colors hover:border-c-ok/40"
+              >
+                <div className="flex items-center gap-2">
+                  <Dot name={project.stack[0] ?? ''} />
+                  <span className="font-mono text-[0.8125rem] text-c-text">
+                    {project.name}
+                  </span>
+                  <span className="ml-auto font-mono text-[0.6875rem] text-c-dim">
+                    {project.year}
+                  </span>
+                </div>
+                {/* Clamped: three cards of full prose is the wall this look
+                    was accused of, and the detail belongs in a conversation. */}
+                <p className="mt-2 line-clamp-3 text-[0.75rem] leading-relaxed text-c-dim">
+                  {t(project.blurb)}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {project.stack.map((tech) => (
+                    <Tag key={tech} name={tech} />
+                  ))}
+                </div>
+              </Tag_>
+            </Reveal>
+          )
+        })}
+      </ul>
+    </Panel>
   )
 }
 
@@ -327,38 +430,31 @@ export function CodeContact() {
   const { t } = useLang()
 
   return (
-    <CodeSection id="contact" label={t(contact.eyebrow).toLowerCase()}>
+    <Panel id="contact">
       <Reveal>
-        <CodeBlock
-          file="contact.sh"
-          lines={[
-            <C>#!/bin/sh</C>,
-            <C># {t(contact.body)}</C>,
-            <>&nbsp;</>,
-            <>
-              <F>mail</F> <P>-s</P> <Str>{t(contact.heading)}</Str> \
-            </>,
-            <>
-              {'  '}
-              <Str>{profile.email}</Str>
-            </>,
-          ]}
-        />
+        <div>
+          <div className="font-mono text-[0.8125rem]">
+            <div className="text-c-dim italic"># {t(contact.body)}</div>
+            <div className="mt-2">
+              <span className="text-c-fn">mail</span>{' '}
+              <span className="text-c-dim">-s</span>{' '}
+              <span className="text-c-str">&quot;{t(contact.heading)}&quot;</span>{' '}
+              <span className="text-c-str">{profile.email}</span>
+            </div>
+            <a
+              href={`mailto:${profile.email}`}
+              className="group mt-4 inline-flex items-center gap-2 rounded border border-c-line px-4 py-2.5 text-xs text-c-text transition-colors hover:border-c-ok hover:text-c-ok"
+            >
+              <span className="text-c-ok">$</span>
+              {t(contact.cta).toLowerCase()}
+              <span className="transition-transform duration-300 group-hover:translate-x-1">
+                →
+              </span>
+            </a>
+          </div>
+        </div>
       </Reveal>
-
-      <Reveal delay={120} className="mt-6">
-        <a
-          href={`mailto:${profile.email}`}
-          className="group inline-flex items-center gap-2 rounded border border-c-line px-4 py-2.5 font-mono text-xs text-c-text transition-colors hover:border-c-ok hover:text-c-ok"
-        >
-          <span className="text-c-ok">$</span>
-          {t(contact.cta).toLowerCase()}
-          <span className="transition-transform duration-300 group-hover:translate-x-1">
-            →
-          </span>
-        </a>
-      </Reveal>
-    </CodeSection>
+    </Panel>
   )
 }
 
@@ -368,9 +464,9 @@ export function CodeFooter() {
 
   return (
     <footer className="border-t border-c-line">
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-6 font-mono text-xs text-c-dim sm:px-6">
+      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-6 font-mono text-[0.6875rem] text-c-dim sm:px-6">
         <span>
-          <C># </C>© {year} {profile.name}. {t(ui.rights)}
+          # © {year} {profile.name}. {t(ui.rights)}
         </span>
         <div className="flex items-center gap-5">
           {profile.links.map((link) => (
