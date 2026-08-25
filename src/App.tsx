@@ -3,16 +3,9 @@ import { useHashScroll } from './lib/hooks'
 import { LangProvider } from './lib/i18n'
 import { LookProvider } from './lib/look'
 import { useLook } from './lib/look-context'
-import {
-  CodeAbout,
-  CodeContact,
-  CodeExperience,
-  CodeFooter,
-  CodeHero,
-  CodeProjects,
-  CodeSkills,
-} from './looks/code/CodeLook'
+import { CodeFooter } from './looks/code/CodeLook'
 import { CodeNav } from './looks/code/CodeNav'
+import { CodeShell } from './looks/code/CodeShell'
 import { Contact, Footer } from './looks/editorial/Contact'
 import { About, Experience } from './looks/editorial/Experience'
 import { Hero } from './looks/editorial/Hero'
@@ -32,12 +25,7 @@ function Looks() {
       <>
         <CodeNav />
         <main>
-          <CodeHero />
-          <CodeAbout />
-          <CodeExperience />
-          <CodeSkills />
-          {projects.length > 0 && <CodeProjects />}
-          <CodeContact />
+          <CodeShell />
         </main>
         <CodeFooter />
       </>

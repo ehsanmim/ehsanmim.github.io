@@ -13,7 +13,7 @@ import {
 import { useState } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
-import { C, CodeSection } from './primitives'
+import { C } from './primitives'
 import { DiffLines, Dot, SkillRow, Tag, Timeline } from './visuals'
 
 
@@ -27,15 +27,11 @@ function Prompt({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Chrome({ title }: { title: string }) {
+/** Every panel's padding, in one place. The shell draws the frame. */
+function Panel({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 border-b border-c-line px-4 py-2.5">
-      <span className="flex gap-1.5" aria-hidden="true">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-      </span>
-      <span className="font-mono text-xs text-c-dim">{title}</span>
+    <div id={id} className="p-4 sm:p-6">
+      {children}
     </div>
   )
 }
@@ -44,12 +40,9 @@ export function CodeHero() {
   const { t } = useLang()
 
   return (
-    <section id="top" className="mx-auto max-w-4xl px-4 pt-20 pb-8 sm:px-6 sm:pt-28">
+    <Panel id="top">
       <Reveal>
-        <div className="overflow-hidden rounded-lg border border-c-line bg-c-panel">
-          <Chrome title={`${profile.name.split(' ')[0].toLowerCase()}@web — zsh`} />
-
-          <div className="space-y-1 p-4 font-mono text-[0.8125rem] leading-[1.85] sm:p-6">
+        <div className="space-y-1 font-mono text-[0.8125rem] leading-[1.85]">
             <div>
               <Prompt>whoami</Prompt>
             </div>
@@ -101,10 +94,9 @@ export function CodeHero() {
               </Prompt>
               <span className="caret inline-block h-4 w-2 bg-c-ok align-middle" />
             </div>
-          </div>
         </div>
       </Reveal>
-    </section>
+    </Panel>
   )
 }
 
@@ -114,16 +106,15 @@ export function CodeAbout() {
   const { t } = useLang()
 
   return (
-    <CodeSection id="about" label={t(about.eyebrow).toLowerCase()}>
+    <Panel id="about">
       <Reveal>
-        <div className="overflow-hidden rounded-lg border border-c-line bg-c-panel">
-          <Chrome title="about.ts" />
+        <div>
 
           {/* Prose, not quoted string literals on numbered lines: a paragraph
               broken into "…" fragments with hanging indents reads as noise,
               and the point of this section is that it gets read. The comment
               delimiters carry the file metaphor on their own. */}
-          <div className="p-4 font-mono text-[0.8125rem] leading-relaxed sm:p-6">
+          <div className="font-mono text-[0.8125rem] leading-relaxed">
             <p className="text-c-dim/70">/**</p>
             <div className="my-2 space-y-3 border-l-2 border-c-dim/25 pl-4">
               <p className="text-c-text">{t(about.heading)}</p>
@@ -137,7 +128,7 @@ export function CodeAbout() {
           </div>
         </div>
       </Reveal>
-    </CodeSection>
+    </Panel>
   )
 }
 
@@ -174,7 +165,7 @@ export function CodeExperience() {
     }))
 
   return (
-    <CodeSection id="experience" label={t(ui.sections.experience).toLowerCase()}>
+    <Panel id="experience">
       <Reveal>
         <div className="mb-6 rounded-lg border border-c-line bg-c-panel p-4 sm:p-5">
           <Timeline
@@ -293,7 +284,7 @@ export function CodeExperience() {
           ))}
         </div>
       </Reveal>
-    </CodeSection>
+    </Panel>
   )
 }
 
@@ -303,7 +294,7 @@ export function CodeSkills() {
   const { t } = useLang()
 
   return (
-    <CodeSection id="skills" label={t(ui.sections.skills).toLowerCase()}>
+    <Panel id="skills">
       <div className="grid gap-2 sm:grid-cols-2">
         {skills.map((group, i) => (
           <Reveal key={t(group.group)} delay={i * 50}>
@@ -353,7 +344,7 @@ export function CodeSkills() {
           </ul>
         </div>
       </Reveal>
-    </CodeSection>
+    </Panel>
   )
 }
 
@@ -363,7 +354,7 @@ export function CodeProjects() {
   const { t } = useLang()
 
   return (
-    <CodeSection id="projects" label={t(ui.sections.projects).toLowerCase()}>
+    <Panel id="projects">
       <ul className="grid gap-2 sm:grid-cols-2">
         {projects.map((project, i) => {
           const Tag_ = project.href ? 'a' : 'div'
@@ -399,7 +390,7 @@ export function CodeProjects() {
           )
         })}
       </ul>
-    </CodeSection>
+    </Panel>
   )
 }
 
@@ -409,11 +400,10 @@ export function CodeContact() {
   const { t } = useLang()
 
   return (
-    <CodeSection id="contact" label={t(contact.eyebrow).toLowerCase()}>
+    <Panel id="contact">
       <Reveal>
-        <div className="overflow-hidden rounded-lg border border-c-line bg-c-panel">
-          <Chrome title="contact.sh" />
-          <div className="p-4 font-mono text-[0.8125rem] sm:p-5">
+        <div>
+          <div className="font-mono text-[0.8125rem]">
             <div className="text-c-dim italic"># {t(contact.body)}</div>
             <div className="mt-2">
               <span className="text-c-fn">mail</span>{' '}
@@ -434,7 +424,7 @@ export function CodeContact() {
           </div>
         </div>
       </Reveal>
-    </CodeSection>
+    </Panel>
   )
 }
 
