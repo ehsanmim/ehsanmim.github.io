@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { projects } from '../../content/resume'
+import { about, contact, projects, ui } from '../../content/resume'
+import { useLang } from '../../lib/lang-context'
+import { LangControl } from './Controls'
 import {
   CodeAbout,
   CodeContact,
@@ -12,8 +14,8 @@ import {
 type Tab = { id: string; file: string; panel: ReactNode }
 
 /**
- * The whole code look as one editor window: traffic lights, a tab strip, and
- * exactly one open file.
+ * The whole code look as one editor window: a tab strip and exactly one open
+ * file.
  *
  * The point is vertical: as a single scrolling document this look ran past four
  * phone screens, and a CV nobody scrolls to the end of has not been read. One
@@ -21,18 +23,21 @@ type Tab = { id: string; file: string; panel: ReactNode }
  * through everything to reach it.
  */
 export function CodeShell() {
+  const { lang, setLang, t } = useLang()
   const tabs = useMemo<Tab[]>(
     () => [
-      { id: 'top', file: 'readme.md', panel: <CodeHero /> },
-      { id: 'about', file: 'about.ts', panel: <CodeAbout /> },
-      { id: 'experience', file: 'experience.ts', panel: <CodeExperience /> },
-      { id: 'skills', file: 'skills.json', panel: <CodeSkills /> },
+      { id: 'top', file: t(ui.tabs.start), panel: <CodeHero /> },
+      { id: 'about', file: t(about.eyebrow), panel: <CodeAbout /> },
+      { id: 'experience', file: t(ui.sections.experience), panel: <CodeExperience /> },
+      { id: 'skills', file: t(ui.sections.skills), panel: <CodeSkills /> },
       ...(projects.length
-        ? [{ id: 'projects', file: 'projects.md', panel: <CodeProjects /> }]
+        ? [{ id: 'projects', file: t(ui.sections.projects), panel: <CodeProjects /> }]
         : []),
-      { id: 'contact', file: 'contact.sh', panel: <CodeContact /> },
+      { id: 'contact', file: t(contact.eyebrow), panel: <CodeContact /> },
     ],
-    [],
+    // The tab names are translated, so they have to be rebuilt on a language
+    // change — the ids they are keyed by deliberately are not.
+    [t],
   )
 
   const known = useCallback(
@@ -65,15 +70,11 @@ export function CodeShell() {
   const current = tabs.find((t) => t.id === active) ?? tabs[0]
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-20 pb-10 sm:px-6 sm:pt-24">
+    <div className="mx-auto max-w-4xl px-4 pt-6 pb-10 sm:px-6 sm:pt-10">
       <div className="overflow-hidden rounded-lg border border-c-line bg-c-panel">
-        <div className="flex items-center gap-3 border-b border-c-line pr-3">
-          <span className="flex shrink-0 gap-1.5 py-3 pl-4" aria-hidden="true">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-          </span>
-
+        {/* No traffic lights: on a phone three decorative dots cost a fifth
+            of the row that the tab names need. */}
+        <div className="flex items-center gap-2 border-b border-c-line pr-2 pl-1">
           {/* Scrolls sideways rather than wrapping: a second row of tabs would
               push the content itself off the first screen. */}
           <div
@@ -98,6 +99,10 @@ export function CodeShell() {
                 {tab.file}
               </button>
             ))}
+          </div>
+
+          <div className="flex shrink-0 items-center pl-2">
+            <LangControl lang={lang} setLang={setLang} label={t(ui.langLabel)} />
           </div>
         </div>
 

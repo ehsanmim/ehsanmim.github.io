@@ -10,11 +10,16 @@ import {
   skills,
   ui,
 } from '../../content/resume'
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
 import { C } from './primitives'
-import { DiffLines, Dot, SkillRow, Tag, Timeline } from './visuals'
+/* Recharts is ~100 kB gzipped and appears on this one tab. Split out, so the
+   first paint of the CV does not carry a charting library it may never use. */
+const TimelineChart = lazy(() =>
+  import('./TimelineChart').then((m) => ({ default: m.TimelineChart })),
+)
+import { DiffLines, Dot, SkillRow, Tag } from './visuals'
 
 
 /* ── hero: a terminal session ─────────────────────────────────────────────── */
@@ -144,39 +149,46 @@ export function CodeExperience() {
   // Hovering an entry's years holds its bar in the timeline and fades the rest.
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  // One chart, two bands: work above the rule, studies below it.
-  const workSpans = experience.map((job) => ({
-    id: jobId(job),
-    label: job.company,
-    start: job.start,
-    end: job.end,
-  }))
-  const studySpans = education
-    .filter((e) => e.chart !== false)
-    .map((e) => ({
-      id: `edu-${e.what.de}`,
-      // The qualification, not the institution: "B.Sc. Maschinenbau" says
-      // what the years bought; the university's full legal name does not,
-      // and at 65 characters it only ever showed as a clipped fragment.
-      label: t(e.what),
-      short: e.short,
-      start: e.start ?? null,
-      end: e.end,
-    }))
+  // One chart: the roles, then the studies that ran alongside them.
+  const spans = [
+    ...experience.map((job) => ({
+      id: jobId(job),
+      label: job.company,
+      detail: t(job.role),
+      periodLabel: period(job, lang, present),
+      start: job.start,
+      end: job.end,
+    })),
+    ...education
+      .filter((e) => e.chart !== false)
+      .map((e) => ({
+        id: `edu-${e.what.de}`,
+        // The qualification, not the institution: "B.Sc. Maschinenbau" says
+        // what the years bought; the university's full legal name does not.
+        label: t(e.what),
+        short: e.short,
+        detail: e.where || undefined,
+        periodLabel: period(e, lang, present),
+        start: e.start ?? null,
+        end: e.end,
+        muted: true,
+      })),
+  ]
 
   return (
     <Panel id="experience">
       <Reveal>
         <div className="mb-6 rounded-lg border border-c-line bg-c-panel p-4 sm:p-5">
-          <Timeline
-            groups={[
-              { key: 'work', spans: workSpans },
-              { key: 'study', spans: studySpans, muted: true },
-            ]}
-            presentLabel={present}
-            activeId={activeId}
-            onHover={setActiveId}
-          />
+          {/* Reserves the chart's height so the panel does not jump when the
+              chunk lands. */}
+          <Suspense fallback={<div style={{ height: spans.length * 30 + 28 }} />}>
+            <TimelineChart
+              spans={spans}
+              presentLabel={present}
+              activeId={activeId}
+              onHover={setActiveId}
+            />
+          </Suspense>
         </div>
       </Reveal>
 
@@ -184,66 +196,83 @@ export function CodeExperience() {
           keyboard- and screen-reader-correct for free, and the current role is
           the only one open — which is what makes this fit on a phone. */}
       <ul className="space-y-2">
-        {experience.map((job, i) => (
-          <Reveal as="li" key={`${job.company}-${job.start}`} delay={i * 60}>
-            <details
-              open={i === 0}
-              onMouseEnter={() => setActiveId(jobId(job))}
-              onMouseLeave={() => setActiveId(null)}
-              onFocus={() => setActiveId(jobId(job))}
-              onBlur={() => setActiveId(null)}
-              className={`group overflow-hidden rounded-lg border bg-c-panel transition-colors duration-200 ${
-                activeId === jobId(job)
-                  ? 'border-c-ok/70 bg-c-line/20'
-                  : 'border-c-line hover:border-c-ok/40'
-              }`}
-            >
-              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-c-line/30">
-                <span
-                  aria-hidden="true"
-                  className="text-c-dim transition-transform duration-200 group-open:rotate-90"
-                >
-                  ▸
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-mono text-[0.8125rem] text-c-text">
-                    {t(job.role)}
-                  </span>
-                  <span className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[0.6875rem] text-c-dim">
-                    <span className="text-c-str">{job.company}</span>
-                    <span>·</span>
-                    <span className="text-c-num">{period(job, lang, present)}</span>
-                    <span>·</span>
-                    <span>{t(job.location)}</span>
-                  </span>
-                </span>
-                {/* Collapsed, the stack is still legible as colour alone. */}
-                <span className="flex shrink-0 gap-1">
-                  {job.stack.slice(0, 5).map((tech) => (
-                    <Dot key={tech} name={tech} />
-                  ))}
-                </span>
-              </summary>
+        {experience.map((job, i) => {
+          const bullets = t(job.bullets)
+          // An entry with neither detail nor a stack has nothing to unfold.
+          // Rendering it as <details> anyway gives a disclosure arrow that
+          // opens an empty box — worse than not offering the fold at all.
+          const foldable = bullets.length > 0 || job.stack.length > 0
 
-              <div className="space-y-3 border-t border-c-line px-4 py-4">
-                {t(job.bullets).length > 0 ? (
-                  <DiffLines lines={t(job.bullets)} />
-                ) : (
-                  <p className="font-mono text-[0.75rem] text-c-dim italic">
-                    {t(ui.noDetail)}
-                  </p>
-                )}
-                {job.stack.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {job.stack.map((tech) => (
-                      <Tag key={tech} name={tech} />
-                    ))}
+          const head = (
+            <>
+              <span
+                aria-hidden="true"
+                className={`text-c-dim transition-transform duration-200 ${
+                  foldable ? 'group-open:rotate-90' : 'invisible'
+                }`}
+              >
+                ▸
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-[0.8125rem] text-c-text">
+                  {t(job.role)}
+                </span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 font-mono text-[0.6875rem] text-c-dim">
+                  <span className="text-c-str">{job.company}</span>
+                  <span>·</span>
+                  <span className="text-c-num">{period(job, lang, present)}</span>
+                  <span>·</span>
+                  <span>{t(job.location)}</span>
+                </span>
+              </span>
+              {/* Collapsed, the stack is still legible as colour alone. */}
+              <span className="flex shrink-0 gap-1">
+                {job.stack.slice(0, 5).map((tech) => (
+                  <Dot key={tech} name={tech} />
+                ))}
+              </span>
+            </>
+          )
+
+          const hover = {
+            onMouseEnter: () => setActiveId(jobId(job)),
+            onMouseLeave: () => setActiveId(null),
+            onFocus: () => setActiveId(jobId(job)),
+            onBlur: () => setActiveId(null),
+          }
+
+          const frame = `group overflow-hidden rounded-lg border bg-c-panel transition-colors duration-200 ${
+            activeId === jobId(job)
+              ? 'border-c-ok/70 bg-c-line/20'
+              : 'border-c-line hover:border-c-ok/40'
+          }`
+
+          return (
+            <Reveal as="li" key={jobId(job)} delay={i * 60}>
+              {foldable ? (
+                <details open={i === 0} {...hover} className={frame}>
+                  <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition-colors hover:bg-c-line/30">
+                    {head}
+                  </summary>
+                  <div className="space-y-3 border-t border-c-line px-4 py-4">
+                    {bullets.length > 0 && <DiffLines lines={bullets} />}
+                    {job.stack.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {job.stack.map((tech) => (
+                          <Tag key={tech} name={tech} />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </details>
-          </Reveal>
-        ))}
+                </details>
+              ) : (
+                <div {...hover} tabIndex={0} className={frame}>
+                  <div className="flex items-center gap-3 px-4 py-3">{head}</div>
+                </div>
+              )}
+            </Reveal>
+          )
+        })}
       </ul>
 
       <Reveal className="mt-4">
@@ -299,12 +328,9 @@ export function CodeSkills() {
         {skills.map((group, i) => (
           <Reveal key={t(group.group)} delay={i * 50}>
             <div className="h-full rounded-lg border border-c-line bg-c-panel p-4">
-              <div className="font-mono text-[0.6875rem] text-c-dim">
-                <span className="text-c-key">const</span>{' '}
-                <span className="text-c-fn">
-                  {t(group.group).toLowerCase().replace(/[^a-z]+/g, '_')}
-                </span>
-              </div>
+              <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
+                {t(group.group)}
+              </h3>
               <ul className="mt-2 divide-y divide-c-line/60">
                 {group.items.map((item) => (
                   <SkillRow key={item.name} name={item.name} level={item.level} />
@@ -323,10 +349,9 @@ export function CodeSkills() {
 
       <Reveal delay={260} className="mt-4">
         <div className="rounded-lg border border-c-line bg-c-panel p-4">
-          <div className="font-mono text-[0.6875rem] text-c-dim">
-            <span className="text-c-key">const</span>{' '}
-            <span className="text-c-fn">{t(ui.sections.languages).toLowerCase()}</span>
-          </div>
+          <h3 className="font-mono text-[0.6875rem] tracking-wide text-c-fn uppercase">
+            {t(ui.sections.languages)}
+          </h3>
           <ul className="mt-2 divide-y divide-c-line/60">
             {languages.map((l) => (
               <li key={t(l.name)} className="flex flex-wrap items-baseline gap-x-3 py-1.5">

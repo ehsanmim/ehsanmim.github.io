@@ -132,15 +132,17 @@ export const experience: Job[] = [
     },
     company: 'hulle24 GmbH',
     location: { de: 'Deutschland', en: 'Germany' },
-    stack: ['Laravel', 'React', 'Typesense'],
+    stack: ['Laravel', 'React', 'Typesense', 'CI/CD'],
     bullets: {
       de: [
         'Planung und Entwicklung eines kompletten Online-Shops: Laravel im Backend, React im Frontend.',
         'Entwicklung der Suche mit Typesense.',
+        'CI/CD-Pipeline für den Shop implementiert.',
       ],
       en: [
         'Full-stack planning and development of a complete online shop: Laravel on the back end, React on the front.',
         'Built the search with Typesense.',
+        'Implemented the CI/CD pipeline for the shop.',
       ],
     },
   },
@@ -197,6 +199,7 @@ export const skills: { group: T; items: Skill[] }[] = [
     group: { de: 'Frontend', en: 'Frontend' },
     items: [
       { name: 'React', level: 5 },
+      { name: 'Tailwind CSS', level: 5 },
       { name: 'HTML', level: 5 },
       { name: 'CSS', level: 5 },
       { name: 'Responsives Webdesign', level: 5 },
@@ -211,20 +214,19 @@ export const skills: { group: T; items: Skill[] }[] = [
       { name: 'PHP', level: 4 },
       { name: 'Django', level: undefined }, // TODO: 1–5
       { name: 'Go', level: undefined }, // TODO: 1–5
-      { name: 'PostgreSQL', level: undefined }, // TODO: 1–5
-      { name: 'MariaDB', level: undefined }, // TODO: 1–5
+      { name: 'PostgreSQL', level: 4 },
+      { name: 'MariaDB', level: 4 },
     ],
   },
   {
-    group: { de: 'Mobile', en: 'Mobile' },
-    items: [{ name: 'Android', level: 3 }],
-  },
-  {
-    group: { de: 'Design & Office', en: 'Design & Office' },
+    group: { de: 'DevOps & Tools', en: 'DevOps & Tools' },
     items: [
-      { name: 'Adobe XD', level: 3 },
-      { name: 'Adobe Photoshop', level: 3 },
-      { name: 'Microsoft Office', level: 3 },
+      { name: 'Docker', level: 4 },
+      { name: 'Docker Compose', level: 4 },
+      { name: 'Git', level: 4 },
+      { name: 'GitHub', level: 4 },
+      { name: 'GitLab', level: 4 },
+      { name: 'CI/CD', level: 4 },
     ],
   },
 ]
@@ -350,23 +352,23 @@ export const ui = {
       de: 'Wo ich gearbeitet habe.',
       en: 'Where I have worked.',
     } satisfies T,
-    skills: { de: 'Skills', en: 'Skills' } satisfies T,
+    skills: { de: 'Kenntnisse', en: 'Skills' } satisfies T,
     skillsHeading: { de: 'Womit ich arbeite.', en: 'What I work with.' } satisfies T,
     projects: { de: 'Projekte', en: 'Projects' } satisfies T,
     projectsHeading: { de: 'Ausgewählte Arbeiten.', en: 'Selected work.' } satisfies T,
     education: { de: 'Ausbildung', en: 'Education' } satisfies T,
     languages: { de: 'Sprachen', en: 'Languages' } satisfies T,
   },
-  /** Shown for a role the CV describes by title only. */
-  noDetail: {
-    de: 'Keine Details hinterlegt.',
-    en: 'No details recorded.',
-  } satisfies T,
   /** Says what the dots mean, so they are not read as a certified rating. */
   levelNote: {
     de: 'Selbsteinschätzung, 1–5.',
     en: 'Self-assessed, 1–5.',
   } satisfies T,
+  /** Tab names. Plain section names: an invented `.json`/`.sh` extension
+   *  claimed a file type that nothing here actually is. */
+  tabs: {
+    start: { de: 'Start', en: 'Start' } satisfies T,
+  },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
