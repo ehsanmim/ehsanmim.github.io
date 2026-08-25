@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { LuBriefcase, LuGraduationCap } from 'react-icons/lu'
 import { Reveal } from '../../lib/reveal'
 import { Dot, Tag } from './visuals'
 
@@ -56,7 +57,7 @@ const CURVE = 26
  * commit, which the lanes would otherwise sit right up against. */
 const GUTTER = 76
 /** How many commits are visible either side of the one in focus. */
-const REACH = 2
+const REACH = 3
 /** How far the focused commit comes forward, and how far each ring back from it
  *  falls away. */
 const ZOOM = 1.06
@@ -141,6 +142,25 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
   const [index, setIndex] = useState(0)
   const deck = useRef<HTMLDivElement>(null)
   const last = commits.length - 1
+
+  // The focused commit opens in place, and everything below it moves down by
+  // however tall its detail turns out to be. Measured rather than assumed: one
+  // role has three bullets and a stack, another has none at all, and a fixed
+  // allowance would leave a hole under the short ones.
+  const detail = useRef<HTMLDivElement>(null)
+  const [detailH, setDetailH] = useState(0)
+  useEffect(() => {
+    const el = detail.current
+    if (!el) {
+      setDetailH(0)
+      return
+    }
+    const measure = () => setDetailH(el.scrollHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [index, commits])
 
   const move = useCallback(
     (by: number) => {
@@ -267,8 +287,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return { from: tops.reduce(earlier), to: bottoms.reduce(later) }
   })()
 
-  const current = commits[index]
-  const height = STEP * (REACH * 2 + 1)
+  const height = STEP * (REACH * 2 + 1) + detailH
 
   return (
     <div>
@@ -281,7 +300,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
           aria-activedescendant={`commit-${index}`}
           onKeyDown={onKey}
           className="deck relative overflow-hidden outline-none"
-          style={{ height }}
+          style={{ height, transition: 'height 0.52s cubic-bezier(0.22, 1, 0.36, 1)' }}
         >
           {/* The whole stack moves as one, so the lanes stay joined. */}
           <div
@@ -308,15 +327,18 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
                   aria-selected={off === 0}
                   className="absolute inset-x-0 grid"
                   style={{
-                    top: i * STEP,
-                    height: STEP,
+                    // Only what is below the focused commit moves down, so the
+                    // focused commit itself never leaves the centre line.
+                    top: i * STEP + (i > index ? detailH : 0),
+                    height: STEP + (off === 0 ? detailH : 0),
                     gridTemplateColumns: `${GUTTER}px 1fr`,
-                    // Everything past the reach is gone rather than merely
-                    // faint: a deck you can see the whole of is a list.
-                    opacity: away > REACH ? 0 : 1 - away * 0.38,
-                    transition: 'opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
+                    transition:
+                      'top 0.52s cubic-bezier(0.22, 1, 0.36, 1), height 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
                   }}
                 >
+                  {/* The graph never fades. The commits come and go through the
+                      deck, but the path they sit on is the shape of the whole
+                      history, and it is drawn end to end. */}
                   <div className="relative">
                     {lanes.map(({ lane, seg }) =>
                       seg ? (
@@ -337,18 +359,46 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
 
                   {/* Only the text column scales, so the graph beside it cannot
                       be pulled out of true. */}
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setIndex(i)}
-                    className="deck-card flex h-full min-w-0 items-center text-left"
+                  <div
+                    className="flex min-w-0 flex-col"
                     style={{
-                      transform: `scale(${off === 0 ? ZOOM : 1 - away * FALLOFF})`,
-                      cursor: off === 0 ? 'default' : 'pointer',
+                      // The text is what recedes, not the graph beside it.
+                      opacity: away > REACH ? 0 : 1 - away * 0.26,
+                      transition: 'opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1)',
                     }}
                   >
-                    <Card commit={commit} focused={off === 0} />
-                  </button>
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setIndex(i)}
+                      className="deck-card flex min-w-0 shrink-0 items-center text-left"
+                      style={{
+                        height: STEP,
+                        // Only the header scales. A tall opened card scaled up
+                        // would push its own detail out of the deck.
+                        transform: `scale(${off === 0 ? ZOOM : 1 - away * FALLOFF})`,
+                        cursor: off === 0 ? 'default' : 'pointer',
+                      }}
+                    >
+                      <Card commit={commit} focused={off === 0} />
+                    </button>
+
+                    {/* Boolean(), not the raw expression: `stack.length` is 0
+                        for a role the CV lists no technologies for, and JSX
+                        renders a 0 rather than nothing. */}
+                    {off === 0 && Boolean(commit.body || commit.stack?.length) && (
+                      <div ref={detail} className="deck-detail min-w-0 pb-6">
+                        {commit.body}
+                        {commit.stack?.length ? (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {commit.stack.map((tech) => (
+                              <Tag key={tech} name={tech} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -366,21 +416,8 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
         </div>
       </Reveal>
 
-      {/* What the focused commit did. Keyed, so it crossfades in as the deck
-          settles rather than swapping under the reader. */}
-      <div className="mt-5 border-t border-line pt-5">
-        <div key={current.id} className="deck-detail min-h-[6rem]">
-          {current.body}
-          {current.stack?.length ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {current.stack.map((tech) => (
-                <Tag key={tech} name={tech} />
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-4 flex items-center gap-3">
+      <div className="mt-4">
+        <div className="flex items-center gap-3">
           <Step label="↑" onClick={() => move(-1)} disabled={index === 0} />
           <Step label="↓" onClick={() => move(1)} disabled={index === last} />
           <span className="meta text-dim">
@@ -455,8 +492,16 @@ function Card({ commit, focused }: { commit: Commit; focused: boolean }) {
   )
 }
 
-/** The commit dot. Ringed in the page background so the lane line stops at it
- *  rather than running underneath; filled while its commit has the deck. */
+/**
+ * The commit dot. Ringed in the page background so the lane line stops at it
+ * rather than running underneath.
+ *
+ * The commit in focus opens into its kind — a cap for the studying, a case for
+ * the work. Only that one: nine marks down the deck would be wallpaper, and on
+ * the commit being read it says at a glance which of the two histories you are
+ * in. It is 20px across, which is exactly narrow enough to sit between the
+ * lanes either side of it without covering them.
+ */
 function Node({
   lane,
   head,
@@ -466,27 +511,48 @@ function Node({
   head?: boolean
   focused: boolean
 }) {
+  const color = laneColor(lane)
+
+  if (focused) {
+    const Icon = lane === 2 ? LuGraduationCap : LuBriefcase
+    return (
+      <span
+        aria-hidden="true"
+        className="deck-kind absolute flex items-center justify-center rounded-full"
+        style={{
+          left: LANE_X[lane] - 10,
+          top: NODE_Y - 10,
+          width: 20,
+          height: 20,
+          color,
+          background: `color-mix(in oklab, ${color} 14%, var(--color-bg))`,
+          // The inner ring is the node; the outer one is the page, punching the
+          // lane out from behind the mark.
+          boxShadow: `0 0 0 1.5px ${color}, 0 0 0 4px var(--color-bg)`,
+        }}
+      >
+        <Icon className="h-3 w-3" />
+      </span>
+    )
+  }
+
   return (
     <span
       aria-hidden="true"
       className="deck-node absolute"
-      style={{
-        left: LANE_X[lane] - 5.5,
-        top: NODE_Y - 5.5,
-        transform: focused ? 'scale(1.5)' : undefined,
-      }}
+      style={{ left: LANE_X[lane] - 5.5, top: NODE_Y - 5.5 }}
     >
       <span
         className="relative block h-[11px] w-[11px] rounded-full ring-4 ring-bg transition-colors duration-300"
         style={{
-          background: head || focused ? laneColor(lane) : 'var(--color-bg)',
-          boxShadow: `inset 0 0 0 2px ${laneColor(lane)}`,
+          background: head ? color : 'var(--color-bg)',
+          boxShadow: `inset 0 0 0 2px ${color}`,
         }}
       >
         {head && (
           <span
             className="pulse absolute inset-0 rounded-full"
-            style={{ ['--pulse-color' as string]: laneColor(lane) }}
+            style={{ ['--pulse-color' as string]: color }}
           />
         )}
       </span>

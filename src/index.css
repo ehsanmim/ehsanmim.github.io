@@ -149,11 +149,29 @@
     will-change: transform;
     /* Overshoots and settles — a spring, not a ramp. That arrival past the
      * target is the difference between "it got bigger" and "it came forward". */
-    transition: transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1);
+    transition:
+      transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1),
+      opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .deck-node {
     transform-origin: center;
+  }
+
+  /* The kind mark, springing in on whichever commit has the deck. */
+  .deck-kind {
+    animation: deck-kind 0.42s cubic-bezier(0.32, 1.5, 0.5, 1) both;
+  }
+
+  @keyframes deck-kind {
+    from {
+      opacity: 0;
+      transform: scale(0.4) rotate(-12deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /* The focused commit's detail, arriving after the deck has settled. */
@@ -178,7 +196,8 @@
       transition: none;
     }
 
-    .deck-detail {
+    .deck-detail,
+    .deck-kind {
       animation: none;
     }
   }
@@ -213,11 +232,29 @@
     will-change: transform;
     /* Overshoots and settles — a spring, not a ramp. That arrival past the
      * target is the difference between "it got bigger" and "it came forward". */
-    transition: transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1);
+    transition:
+      transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1),
+      opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .deck-node {
     transform-origin: center;
+  }
+
+  /* The kind mark, springing in on whichever commit has the deck. */
+  .deck-kind {
+    animation: deck-kind 0.42s cubic-bezier(0.32, 1.5, 0.5, 1) both;
+  }
+
+  @keyframes deck-kind {
+    from {
+      opacity: 0;
+      transform: scale(0.4) rotate(-12deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /* The focused commit's detail, arriving after the deck has settled. */
@@ -242,7 +279,8 @@
       transition: none;
     }
 
-    .deck-detail {
+    .deck-detail,
+    .deck-kind {
       animation: none;
     }
   }
