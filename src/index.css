@@ -134,7 +134,9 @@
   /* The deck: one commit in focus, its neighbours either side of it, and the
    * page's scroll borrowed only while it still has somewhere to go. */
   .deck {
-    touch-action: pan-x;
+    /* No touch-action lock: the deck is driven by the page's own scroll now,
+     * so a finger dragged over it must pan the page exactly as it does
+     * everywhere else. */
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -214,78 +216,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    /* The deck: one commit in focus, its neighbours either side of it, and the
-   * page's scroll borrowed only while it still has somewhere to go. */
-  .deck {
-    touch-action: pan-x;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .deck:focus-visible {
-    outline: 2px solid var(--color-p-ink);
-    outline-offset: 4px;
-  }
-
-  .deck-card,
-  .deck-node {
-    transform-origin: left center;
-    will-change: transform;
-    /* Overshoots and settles — a spring, not a ramp. That arrival past the
-     * target is the difference between "it got bigger" and "it came forward". */
-    transition:
-      transform 0.52s cubic-bezier(0.32, 1.4, 0.5, 1),
-      opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .deck-node {
-    transform-origin: center;
-  }
-
-  /* The kind mark, springing in on whichever commit has the deck. */
-  .deck-kind {
-    animation: deck-kind 0.42s cubic-bezier(0.32, 1.5, 0.5, 1) both;
-  }
-
-  @keyframes deck-kind {
-    from {
-      opacity: 0;
-      transform: scale(0.4) rotate(-12deg);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-
-  /* The focused commit's detail, arriving after the deck has settled. */
-  .deck-detail {
-    animation: deck-detail 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  @keyframes deck-detail {
-    from {
-      opacity: 0;
-      transform: translateY(6px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .deck-card,
-    .deck-node {
-      transition: none;
-    }
-
-    .deck-detail,
-    .deck-kind {
-      animation: none;
-    }
-  }
-
-  .commit {
+    .commit {
       transform: none !important;
       filter: none !important;
       transition: opacity 0.2s ease;

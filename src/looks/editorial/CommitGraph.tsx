@@ -7,10 +7,16 @@ import { Dot, Tag } from './visuals'
  * `git log --graph` as a deck.
  *
  * One commit is in focus at a time, its neighbours sit above and below it,
- * scaled back and faded, and everything further away is gone. Rolling the wheel
- * over it — or dragging, or pressing a cursor key — moves the deck by exactly
- * one commit rather than scrolling the page. At either end the page takes the
- * scroll back, so the reader is never trapped in it.
+ * scaled back and faded, and everything further away is gone.
+ *
+ * The deck is *pinned* rather than scroll-jacked: it sticks to the top of the
+ * viewport while the page scrolls through a track as long as the history, and
+ * the scroll position inside that track picks the commit. Nothing is
+ * preventDefault-ed, so the page keeps its own inertia, its own rubber band and
+ * its own scrollbar — which is the only way this behaves on a phone, where the
+ * browser claims a touch gesture before script gets a say and cancelling it
+ * mid-flight is what makes the page jump. Scroll past the track and the deck
+ * simply unpins.
  *
  * Three lanes, and they mean what their names mean. `main` carries the finished
  * roles. `wip` carries whatever is still running — branched off main and
@@ -66,10 +72,9 @@ const REACH_NARROW = 1
  *  falls away. */
 const ZOOM = 1.06
 const FALLOFF = 0.09
-/** Wheel travel that counts as "one commit". */
-const THRESHOLD = 60
-/** Quiet time before the deck will accept another turn. */
-const COOLDOWN = 260
+/** Where the pinned deck sits while the page scrolls through its track — clear
+ *  of the sticky masthead. */
+const PIN_TOP = 92
 
 const laneColor = (lane: number) => `var(${LANE_VAR[lane]})`
 
@@ -145,6 +150,7 @@ function Curve({
 export function CommitGraph({ commits }: { commits: Commit[] }) {
   const [index, setIndex] = useState(0)
   const deck = useRef<HTMLDivElement>(null)
+  const track = useRef<HTMLDivElement>(null)
   const last = commits.length - 1
 
   // The focused commit opens in place, and everything below it moves down by
@@ -175,115 +181,55 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
     return () => ro.disconnect()
   }, [index, commits])
 
+  /**
+   * How far the page scrolls per commit, and how much room the pinned deck is
+   * given inside its track. Both are constants on purpose: deriving the track's
+   * length from the deck's own height would feed the opened detail back into
+   * the sums that decide which commit is open.
+   */
+  const step = reach === REACH_NARROW ? 96 : 120
+  const span = (commits.length - 1) * step
+
+  // The scroll position inside the track is the only thing that picks the
+  // commit — there is no second source of truth to fall out of step with it.
+  useEffect(() => {
+    const el = track.current
+    if (!el) return
+
+    let raf = 0
+    const read = () => {
+      raf = 0
+      const top = el.getBoundingClientRect().top
+      const travelled = Math.min(span, Math.max(0, PIN_TOP - top))
+      setIndex(Math.round((travelled / span) * (commits.length - 1)))
+    }
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(read)
+    }
+
+    read()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      if (raf) cancelAnimationFrame(raf)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [span, commits.length])
+
+  /** Move by scrolling, so the buttons and the keys land where the wheel would. */
   const move = useCallback(
     (by: number) => {
-      let moved = false
-      setIndex((i) => {
-        const next = Math.min(last, Math.max(0, i + by))
-        moved = next !== i
-        return next
+      const el = track.current
+      if (!el) return
+      const to = Math.min(last, Math.max(0, index + by))
+      window.scrollTo({
+        top: el.getBoundingClientRect().top + window.scrollY - PIN_TOP + to * step,
+        behavior: 'smooth',
       })
-      return moved
     },
-    [last],
+    [index, last, step],
   )
-
-  /**
-   * While the deck is the thing on screen, the page's scroll belongs to it —
-   * wherever the pointer happens to be. It hands the scroll back the moment the
-   * deck runs out of commits in the direction you are going, so the page moves
-   * on as normal past either end. A section that swallows the scroll and will
-   * not give it back is a trap, not an effect.
-   */
-  useEffect(() => {
-    const el = deck.current
-    if (!el) return
-
-    // The deck is "the thing on screen" while it crosses the middle of the
-    // viewport. Measured per event rather than observed, because it is the
-    // position at the moment of the scroll that decides.
-    const holding = () => {
-      const r = el.getBoundingClientRect()
-      const h = window.innerHeight
-      return r.top < h * 0.62 && r.bottom > h * 0.38
-    }
-
-    let acc = 0
-    let locked = false
-    let quiet: ReturnType<typeof setTimeout> | undefined
-
-    const settle = () => {
-      if (quiet) clearTimeout(quiet)
-      quiet = setTimeout(() => {
-        locked = false
-        acc = 0
-      }, COOLDOWN)
-    }
-
-    const turn = (delta: number, cancel: () => void) => {
-      const room = delta > 0 ? index < last : index > 0
-      if (!room || !holding()) return
-      // The page must not scroll underneath a deck that is about to move.
-      cancel()
-      settle()
-      if (locked) return
-      acc += delta
-      if (Math.abs(acc) < THRESHOLD) return
-      acc = 0
-      if (move(Math.sign(delta))) locked = true
-    }
-
-    const onWheel = (e: WheelEvent) => {
-      turn(e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY, () => e.preventDefault())
-    }
-
-    let from: number | null = null
-    const onTouchStart = (e: TouchEvent) => {
-      from = e.touches[0]?.clientY ?? null
-      acc = 0
-    }
-    const onTouchMove = (e: TouchEvent) => {
-      const y = e.touches[0]?.clientY
-      if (y === undefined || from === null) return
-      turn(from - y, () => e.preventDefault())
-      from = y
-    }
-
-    // On the window, not the deck: the scroll is the deck's while the deck is
-    // what you are looking at, whether or not the pointer is over it.
-    window.addEventListener('wheel', onWheel, { passive: false })
-    window.addEventListener('touchstart', onTouchStart, { passive: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: false })
-    return () => {
-      if (quiet) clearTimeout(quiet)
-      window.removeEventListener('wheel', onWheel)
-      window.removeEventListener('touchstart', onTouchStart)
-      window.removeEventListener('touchmove', onTouchMove)
-    }
-  }, [index, last, move])
-
-  // Bring the commit in focus to the middle of the screen if it has drifted
-  // off it. On a phone the deck is most of the viewport, so a commit two steps
-  // in can sit under the fold — moving the deck to it is no use if the reader
-  // cannot see where it moved to.
-  useEffect(() => {
-    const el = deck.current?.querySelector<HTMLElement>(`[data-slot="${index}"]`)
-    if (!el) return
-    // Two frames: the slot is mid-transition on the first one.
-    const raf = requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect()
-        // The header, not the opened detail — it is the commit's own line that
-        // should land in the middle, not the middle of everything it says.
-        const centre = r.top + Math.min(r.height, STEP) / 2
-        const drift = centre - window.innerHeight / 2
-        if (Math.abs(drift) > window.innerHeight * 0.2) {
-          window.scrollBy({ top: drift, behavior: 'smooth' })
-        }
-      }),
-    )
-    return () => cancelAnimationFrame(raf)
-  }, [index])
 
   const onKey = (e: React.KeyboardEvent) => {
     const by = { ArrowDown: 1, PageDown: 1, ArrowUp: -1, PageUp: -1 }[e.key]
@@ -292,10 +238,10 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
       move(by)
     } else if (e.key === 'Home') {
       e.preventDefault()
-      setIndex(0)
+      move(-commits.length)
     } else if (e.key === 'End') {
       e.preventDefault()
-      setIndex(last)
+      move(commits.length)
     }
   }
 
@@ -344,7 +290,12 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
   const height = STEP * VISIBLE + detailH
 
   return (
-    <div>
+    // The track is as long as the history. The deck sticks to the top of it and
+    // stays there while the page scrolls the rest of the way down, which is
+    // what turns page scroll into deck movement without taking the scroll away
+    // from the browser.
+    <div ref={track} style={{ height: span + STEP * VISIBLE + 260 }}>
+      <div className="sticky" style={{ top: PIN_TOP }}>
       <Reveal>
         <div
           ref={deck}
@@ -497,6 +448,7 @@ export function CommitGraph({ commits }: { commits: Commit[] }) {
             {index + 1} / {commits.length}
           </span>
         </div>
+      </div>
       </div>
     </div>
   )
