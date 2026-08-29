@@ -248,6 +248,13 @@ export function CommitGraph({
     let raf = 0
     const read = () => {
       raf = 0
+      // A single commit has nothing to travel: its track is zero long, and
+      // dividing by that span would set the index to NaN. Soloing a branch can
+      // leave exactly one commit, so this is reachable, not theoretical.
+      if (span <= 0) {
+        setIndex(0)
+        return
+      }
       const top = el.getBoundingClientRect().top
       const travelled = Math.min(span, Math.max(0, pinTop - top))
       setIndex(Math.round((travelled / span) * (commits.length - 1)))

@@ -10,7 +10,7 @@ import {
   skills,
   ui,
 } from '../../content/resume'
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
 import { CommitGraph, type Commit, type Lane } from './CommitGraph'
@@ -200,23 +200,26 @@ export function About() {
 
 /* ── experience: the history as a commit graph ────────────────────────────── */
 
-/** The graph's own lane colours, for the legend that stands above it. */
-const BRANCH_COLOR = {
-  wip: 'var(--color-wip)',
-  main: 'var(--color-p-ink)',
-  edu: 'var(--color-edu)',
-}
+/** The graph's own lane colours, for the legend that stands above it, and the
+ *  lane each branch name stands for. Work is one branch: splitting the running
+ *  job onto a second lane made two labels out of one idea. */
+const BRANCHES = [
+  { name: 'main', lane: 0 as Lane, color: 'var(--color-p-ink)' },
+  { name: 'edu', lane: 2 as Lane, color: 'var(--color-edu)' },
+] as const
 
 export function Experience() {
   const { t, lang } = useLang()
   const present = t(ui.present)
+  // Solo, as a mixer does it: one branch at a time, and clicking the one that
+  // is already soloed puts the rest back.
+  const [solo, setSolo] = useState<Lane | null>(null)
 
-  // Finished roles on main, whatever is still running on wip, studies on edu —
-  // newest first, in `git log` order.
+  // Work on main, studies on edu — newest first, in `git log` order.
   const commits: (Commit & { sort: string })[] = [
     ...experience.map((job) => ({
       id: `${job.company}-${job.start ?? 'undated'}`,
-      lane: (job.end === null ? 1 : 0) as Lane,
+      lane: 0 as Lane,
       sort: job.start ?? job.end ?? '0000-00',
       when: period(job, lang, present),
       title: t(job.role),
@@ -238,17 +241,20 @@ export function Experience() {
   ].sort((a, b) => b.sort.localeCompare(a.sort))
 
   // The refs go on the newest entry of each lane, the way `git log` prints
-  // them. HEAD is on wip, because that is the work that is still going.
+  // them. HEAD is on main, because that is the work that is still going.
   const firstOf = (lane: Lane) => commits.find((c) => c.lane === lane)
   const named: [Lane, string][] = [
-    [1, 'HEAD → wip'],
-    [0, 'main'],
+    [0, 'HEAD → main'],
     [2, 'edu'],
   ]
   for (const [lane, ref] of named) {
     const commit = firstOf(lane)
     if (commit) commit.ref = ref
   }
+
+  // Refs are worked out on the whole history, so the branch tips keep the names
+  // they have in it rather than being handed to whatever survives the filter.
+  const shown = solo === null ? commits : commits.filter((c) => c.lane === solo)
 
   const legend = (
     <>
@@ -263,20 +269,47 @@ export function Experience() {
         </h2>
       </div>
       <div className="rule mt-5" />
-      {/* A legend, because three lanes is one more than a reader will infer.
+      {/* A legend, because the lanes are one thing a reader will not infer —
+          and, since it already names the branches, the place to solo one.
           Each branch name is printed in its own lane's colour. */}
       <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
-        {(['wip', 'main', 'edu'] as const).map((branch) => (
-          <li key={branch} className="meta flex items-center gap-2 text-dim">
-            <span
-              aria-hidden="true"
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ background: BRANCH_COLOR[branch] }}
-            />
-            <span style={{ color: BRANCH_COLOR[branch] }}>{branch}</span>
-            <span>{t(ui.branches[branch])}</span>
-          </li>
-        ))}
+        {BRANCHES.map(({ name, lane, color }) => {
+          const on = solo === lane
+          // Hollow only when another branch is soloed: with nothing soloed the
+          // legend should look the way it always did.
+          const off = solo !== null && !on
+          return (
+            <li key={name}>
+              <button
+                type="button"
+                aria-pressed={on}
+                title={t(on ? ui.soloOff : ui.soloOn)}
+                onClick={() => {
+                  setSolo(on ? null : lane)
+                  // The track shrinks under the reader when a branch drops out
+                  // of it. Back to the top of the section, so the deck reopens
+                  // at the newest commit rather than wherever the old scroll
+                  // position happens to land in the shorter one.
+                  document.getElementById('experience')?.scrollIntoView()
+                }}
+                className={`meta flex cursor-pointer items-center gap-2 text-dim outline-none transition-opacity hover:opacity-100 focus-visible:underline ${
+                  off ? 'opacity-40' : 'opacity-100'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{
+                    background: off ? 'transparent' : color,
+                    boxShadow: off ? `inset 0 0 0 1.5px ${color}` : 'none',
+                  }}
+                />
+                <span style={{ color }}>{name}</span>
+                <span>{t(ui.branches[name])}</span>
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </>
   )
@@ -285,7 +318,7 @@ export function Experience() {
   // together as one screen, so they have to live inside the graph's own track.
   return (
     <section id="experience" className="px-5 sm:px-8">
-      <CommitGraph commits={commits} header={legend} />
+      <CommitGraph key={solo ?? 'all'} commits={shown} header={legend} />
     </section>
   )
 }
@@ -307,7 +340,12 @@ export function Skills() {
           <Reveal key={t(group.group)} delay={i * 60}>
             <Card title={t(group.group)}>
               {group.items.map((item) => (
-                <SkillRow key={item.name} name={item.name} level={item.level} />
+                <SkillRow
+                  key={item.name}
+                  name={item.name}
+                  label={item.label ? t(item.label) : undefined}
+                  level={item.level}
+                />
               ))}
             </Card>
           </Reveal>

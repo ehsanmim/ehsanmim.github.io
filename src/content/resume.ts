@@ -194,7 +194,16 @@ export const experience: Job[] = [
 /** Self-assessed, 1–5, exactly as the CV's filled dots.
  *  `level` is optional: a skill added since the CV shows no rating until you
  *  give it one, rather than being assigned a number I made up. */
-export type Skill = { name: string; level?: number }
+export type Skill = {
+  /** The canonical name — the key the brand mark and the tech colour are
+   *  looked up by, and never translated: 'React' is 'React' in both. */
+  name: string
+  /** Only for the handful of skills whose *name* is a German phrase rather
+   *  than a product: without this they would print untranslated in the
+   *  English CV. */
+  label?: T
+  level?: number
+}
 
 export const skills: { group: T; items: Skill[] }[] = [
   {
@@ -204,7 +213,11 @@ export const skills: { group: T; items: Skill[] }[] = [
       { name: 'Tailwind CSS', level: 5 },
       { name: 'HTML', level: 5 },
       { name: 'CSS', level: 5 },
-      { name: 'Responsives Webdesign', level: 5 },
+      {
+        name: 'Responsives Webdesign',
+        label: { de: 'Responsives Webdesign', en: 'Responsive web design' },
+        level: 5,
+      },
       { name: 'jQuery', level: 4 },
       { name: 'JavaScript', level: 3 },
     ],
@@ -229,7 +242,14 @@ export const skills: { group: T; items: Skill[] }[] = [
       { name: 'GitHub', level: 4 },
       { name: 'GitLab', level: 4 },
       { name: 'CI/CD', level: 4 },
-      { name: 'S3-kompatibler Objektspeicher', level: 4 },
+      {
+        name: 'S3-kompatibler Objektspeicher',
+        label: {
+          de: 'S3-kompatibler Objektspeicher',
+          en: 'S3-compatible object storage',
+        },
+        level: 4,
+      },
       { name: 'MinIO', level: 4 },
     ],
   },
@@ -357,6 +377,28 @@ export const contact = {
   cta: { de: 'E-Mail schreiben', en: 'Send an email' } satisfies T,
 }
 
+/**
+ * The downloadable CV. `scripts/build-cv.mjs` renders one PDF per language
+ * from this very module and writes it to `public/` under these names, so the
+ * file a visitor downloads always matches the page they downloaded it from.
+ * The German reader gets the German document; the English reader the English.
+ */
+export const cv = {
+  file: {
+    de: 'Ehsan-Moradpour-Lebenslauf.pdf',
+    en: 'Ehsan-Moradpour-CV.pdf',
+  } satisfies T,
+  /** Names the document in the PDF's own metadata and the browser tab. */
+  docTitle: { de: 'Lebenslauf', en: 'CV' } satisfies T,
+  /** The PDF's opening section — the site says the same thing as a hero. */
+  summary: { de: 'Profil', en: 'Profile' } satisfies T,
+}
+
+/** '/Ehsan-Moradpour-Lebenslauf.pdf' — served straight from `public/`. */
+export function cvHref(lang: Lang): string {
+  return `/${cv.file[lang]}`
+}
+
 export const ui = {
   sections: {
     experience: { de: 'Erfahrung', en: 'Experience' } satisfies T,
@@ -387,16 +429,27 @@ export const ui = {
     viewWork: { de: 'Werdegang ansehen', en: 'See the history' } satisfies T,
   },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
+  /** The masthead's CV control: one label, two actions. */
+  cv: {
+    label: { de: 'Lebenslauf', en: 'Résumé' } satisfies T,
+    view: { de: 'Lebenslauf ansehen (PDF)', en: 'View résumé (PDF)' } satisfies T,
+    download: {
+      de: 'Lebenslauf herunterladen (PDF)',
+      en: 'Download résumé (PDF)',
+    } satisfies T,
+  },
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
   themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
   /** The commit graph's legend: what each lane holds. Keyed by branch name,
    *  which is printed as-is — a branch is not translated. */
   branches: {
-    wip: { de: 'Laufend', en: 'Ongoing' } satisfies T,
     main: { de: 'Arbeit', en: 'Work' } satisfies T,
     edu: { de: 'Ausbildung', en: 'Studies' } satisfies T,
   },
+  /** The legend doubles as a filter: a branch can be soloed out of the graph. */
+  soloOn: { de: 'Nur diesen Branch zeigen', en: 'Show only this branch' } satisfies T,
+  soloOff: { de: 'Alle Branches zeigen', en: 'Show all branches' } satisfies T,
   present: { de: 'heute', en: 'present' } satisfies T,
   rights: { de: 'Alle Rechte vorbehalten.', en: 'All rights reserved.' } satisfies T,
 }
