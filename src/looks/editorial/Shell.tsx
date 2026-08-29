@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { about, contact, profile, projects, ui } from '../../content/resume'
+import { about, contact, cv, cvHref, profile, projects, ui } from '../../content/resume'
 import { useActiveSection, useHashScroll } from '../../lib/hooks'
 import { useLang } from '../../lib/lang-context'
 import { useTheme } from '../../lib/theme'
-import { LangControl, ThemeControl } from './Controls'
+import { CvControl, LangControl, ThemeControl } from './Controls'
 import { About, Contact, Experience, Footer, Hero, Projects, Skills } from './Sections'
 
 /**
@@ -82,7 +82,17 @@ export function Shell() {
               </span>
             </button>
 
+            {/* The CV sits first in the cluster and is the only control here
+                carrying a word: it is the one thing a visitor came to take
+                away, and the theme and language buttons are settings. */}
             <div className="ml-auto flex shrink-0 items-center gap-2">
+              <CvControl
+                href={cvHref(lang)}
+                file={cv.file[lang]}
+                label={t(ui.cv.label)}
+                view={t(ui.cv.view)}
+                download={t(ui.cv.download)}
+              />
               <ThemeControl theme={theme} toggle={toggleTheme} label={t(ui.themeLabel)} />
               <LangControl lang={lang} toggle={toggle} label={t(ui.langLabel)} />
             </div>

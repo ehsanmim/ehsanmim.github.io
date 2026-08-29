@@ -57,9 +57,15 @@ export const profile = {
     de: ['Web-Entwickler', 'aus Dortmund,', 'der gerne erklärt.'],
     en: ['Web developer', 'in Dortmund', 'who likes to explain.'],
   } satisfies Record<Lang, string[]>,
+  /* The first line a recruiter reads, so it names the specialism rather than
+     the employers — the employers are three centimetres below it either way.
+
+     "Pipelines and process automation", deliberately, and never "data
+     engineering": the latter reads as Spark/Airflow/dbt to anyone screening
+     CVs and invites the wrong interview. */
   intro: {
-    de: 'Seit 2023 bin ich Full-Stack-Entwickler bei hulle24. Davor Web-Entwicklung in der IT-Abteilung der National Iranian Gas Company und freiberuflich für Web und Android.',
-    en: 'Since 2023 I have been a full-stack developer at hulle24. Before that, web development in the IT department of the National Iranian Gas Company and freelance work for web and Android.',
+    de: 'Ich baue Backends, die Daten stufenweise verarbeiten — Medien-Pipelines, Suchindexierung, CI/CD — von der Datenbank bis zum Interface. Seit 2023 Full-Stack-Entwickler bei hulle24, daneben das Studium der Angewandten Informatik, Abschluss 2026.',
+    en: 'I build back ends that move data through stages — media pipelines, search indexing, CI/CD — from the database through to the interface. Full-stack developer at hulle24 since 2023; applied computer science alongside it, finishing 2026.',
   } satisfies T,
   location: { de: 'Dortmund, Deutschland', en: 'Dortmund, Germany' } satisfies T,
   availability: {
@@ -178,44 +184,60 @@ export const experience: Job[] = [
   },
 ]
 
-/** Self-assessed, 1–5, exactly as the CV's filled dots.
- *  `level` is optional: a skill added since the CV shows no rating until you
- *  give it one, rather than being assigned a number I made up. */
-export type Skill = { name: string; level?: number }
+/**
+ * A skill.
+ *
+ * No rating: the CV's five filled dots are gone. A parser never read them —
+ * they carry no keyword — and against a human they only ever cost something,
+ * since a number you gave yourself is either a wound (a 3 beside a 5) or a
+ * dare. What a skill is worth is settled by the bullet it appears in.
+ */
+export type Skill = {
+  /** The canonical name — the key the brand mark and the tech colour are
+   *  looked up by, and never translated: 'React' is 'React' in both. */
+  name: string
+  /** Only for the handful of skills whose *name* is a German phrase rather
+   *  than a product: without this they would print untranslated in the
+   *  English CV. */
+  label?: T
+}
 
 export const skills: { group: T; items: Skill[] }[] = [
   {
     group: { de: 'Frontend', en: 'Frontend' },
     items: [
-      { name: 'React', level: 5 },
-      { name: 'Tailwind CSS', level: 5 },
-      { name: 'HTML', level: 5 },
-      { name: 'CSS', level: 5 },
-      { name: 'Responsives Webdesign', level: 5 },
-      { name: 'jQuery', level: 4 },
-      { name: 'JavaScript', level: 3 },
+      { name: 'React' },
+      { name: 'Tailwind CSS' },
+      { name: 'HTML' },
+      { name: 'CSS' },
+      {
+        name: 'Responsives Webdesign',
+        label: { de: 'Responsives Webdesign', en: 'Responsive web design' },
+      },
+      { name: 'jQuery' },
+      { name: 'JavaScript' },
     ],
   },
   {
     group: { de: 'Backend', en: 'Backend' },
     items: [
-      { name: 'Laravel', level: 5 },
-      { name: 'PHP', level: 4 },
-      { name: 'Django', level: undefined }, // TODO: 1–5
-      { name: 'Go', level: undefined }, // TODO: 1–5
-      { name: 'PostgreSQL', level: 4 },
-      { name: 'MariaDB', level: 4 },
+      { name: 'Laravel' },
+      { name: 'PHP' },
+      { name: 'Django' }, // TODO: 1–5
+      { name: 'Go' }, // TODO: 1–5
+      { name: 'PostgreSQL' },
+      { name: 'MariaDB' },
     ],
   },
   {
     group: { de: 'DevOps & Tools', en: 'DevOps & Tools' },
     items: [
-      { name: 'Docker', level: 4 },
-      { name: 'Docker Compose', level: 4 },
-      { name: 'Git', level: 4 },
-      { name: 'GitHub', level: 4 },
-      { name: 'GitLab', level: 4 },
-      { name: 'CI/CD', level: 4 },
+      { name: 'Docker' },
+      { name: 'Docker Compose' },
+      { name: 'Git' },
+      { name: 'GitHub' },
+      { name: 'GitLab' },
+      { name: 'CI/CD' },
     ],
   },
 ]
@@ -342,6 +364,28 @@ export const contact = {
   cta: { de: 'E-Mail schreiben', en: 'Send an email' } satisfies T,
 }
 
+/**
+ * The downloadable CV. `scripts/build-cv.mjs` renders one PDF per language
+ * from this very module and writes it to `public/` under these names, so the
+ * file a visitor downloads always matches the page they downloaded it from.
+ * The German reader gets the German document; the English reader the English.
+ */
+export const cv = {
+  file: {
+    de: 'Ehsan-Moradpour-Lebenslauf.pdf',
+    en: 'Ehsan-Moradpour-CV.pdf',
+  } satisfies T,
+  /** Names the document in the PDF's own metadata and the browser tab. */
+  docTitle: { de: 'Lebenslauf', en: 'CV' } satisfies T,
+  /** The PDF's opening section — the site says the same thing as a hero. */
+  summary: { de: 'Profil', en: 'Profile' } satisfies T,
+}
+
+/** '/Ehsan-Moradpour-Lebenslauf.pdf' — served straight from `public/`. */
+export function cvHref(lang: Lang): string {
+  return `/${cv.file[lang]}`
+}
+
 export const ui = {
   sections: {
     experience: { de: 'Erfahrung', en: 'Experience' } satisfies T,
@@ -356,11 +400,6 @@ export const ui = {
     education: { de: 'Ausbildung', en: 'Education' } satisfies T,
     languages: { de: 'Sprachen', en: 'Languages' } satisfies T,
   },
-  /** Says what the dots mean, so they are not read as a certified rating. */
-  levelNote: {
-    de: 'Selbsteinschätzung, 1–5.',
-    en: 'Self-assessed, 1–5.',
-  } satisfies T,
   /** Tab names. Plain section names: an invented `.json`/`.sh` extension
    *  claimed a file type that nothing here actually is. */
   tabs: {
@@ -372,16 +411,27 @@ export const ui = {
     viewWork: { de: 'Werdegang ansehen', en: 'See the history' } satisfies T,
   },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
+  /** The masthead's CV control: one label, two actions. */
+  cv: {
+    label: { de: 'Lebenslauf', en: 'Résumé' } satisfies T,
+    view: { de: 'Lebenslauf ansehen (PDF)', en: 'View résumé (PDF)' } satisfies T,
+    download: {
+      de: 'Lebenslauf herunterladen (PDF)',
+      en: 'Download résumé (PDF)',
+    } satisfies T,
+  },
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
   themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
   /** The commit graph's legend: what each lane holds. Keyed by branch name,
    *  which is printed as-is — a branch is not translated. */
   branches: {
-    wip: { de: 'Laufend', en: 'Ongoing' } satisfies T,
     main: { de: 'Arbeit', en: 'Work' } satisfies T,
     edu: { de: 'Ausbildung', en: 'Studies' } satisfies T,
   },
+  /** The legend doubles as a filter: a branch can be soloed out of the graph. */
+  soloOn: { de: 'Nur diesen Branch zeigen', en: 'Show only this branch' } satisfies T,
+  soloOff: { de: 'Alle Branches zeigen', en: 'Show all branches' } satisfies T,
   present: { de: 'heute', en: 'present' } satisfies T,
   rights: { de: 'Alle Rechte vorbehalten.', en: 'All rights reserved.' } satisfies T,
 }

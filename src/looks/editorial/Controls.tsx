@@ -123,3 +123,85 @@ export function ThemeControl({
     </button>
   )
 }
+
+/**
+ * The CV control: one pill, two actions.
+ *
+ * The label opens the PDF in a new tab and the icon beside it saves the file —
+ * a reader who wants to look and a reader who wants to keep it are after
+ * different things, and a single button can only serve one of them. Both point
+ * at the document in the language currently being read.
+ *
+ * The label is hidden on a narrow screen, where the masthead's section index
+ * needs the width more than the word does.
+ */
+export function CvControl({
+  href,
+  file,
+  label,
+  view,
+  download,
+}: {
+  href: string
+  file: string
+  label: string
+  view: string
+  download: string
+}) {
+  return (
+    <span className="inline-flex h-8 items-stretch overflow-hidden rounded-full border border-line bg-surface">
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener"
+        title={view}
+        className="flex items-center gap-1.5 px-2.5 text-dim transition-colors hover:bg-p-wash hover:text-p-ink sm:pl-3"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-[14px] w-[14px] shrink-0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M14 2.5H7.5A1.5 1.5 0 0 0 6 4v16a1.5 1.5 0 0 0 1.5 1.5h9A1.5 1.5 0 0 0 18 20V6.5z" />
+          <path d="M14 2.5V6.5H18" />
+          <path d="M9 12.5h6M9 16h4" />
+        </svg>
+        <span className="eyebrow hidden sm:inline">{label}</span>
+      </a>
+
+      {/* A hairline rather than a gap: the two actions stay one object, but the
+          reader can see there are two of them. */}
+      <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-line" />
+
+      <a
+        href={href}
+        // The attribute names the saved file, so it does not land in the
+        // reader's downloads folder under whatever the server called it.
+        download={file}
+        title={download}
+        aria-label={download}
+        className="flex items-center px-2 text-dim transition-colors hover:bg-p-wash hover:text-p-ink"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-[14px] w-[14px]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3.5v11" />
+          <path d="M8 11l4 3.5 4-3.5" />
+          <path d="M4.5 18.5v1A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-1" />
+        </svg>
+      </a>
+    </span>
+  )
+}
