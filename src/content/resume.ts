@@ -132,16 +132,18 @@ export const experience: Job[] = [
     },
     company: 'hulle24 GmbH',
     location: { de: 'Deutschland', en: 'Germany' },
-    stack: ['Laravel', 'React', 'Typesense', 'CI/CD'],
+    stack: ['Laravel', 'React', 'Typesense', 'S3', 'MinIO', 'CI/CD'],
     bullets: {
       de: [
         'Planung und Entwicklung eines kompletten Online-Shops: Laravel im Backend, React im Frontend.',
         'Entwicklung der Suche mit Typesense.',
+        'Medien-Pipeline mit automatisch erzeugten responsiven Varianten, abgelegt in S3-kompatiblem Objektspeicher.',
         'CI/CD-Pipeline für den Shop implementiert.',
       ],
       en: [
         'Full-stack planning and development of a complete online shop: Laravel on the back end, React on the front.',
         'Built the search with Typesense.',
+        'Media pipeline with responsive variants generated automatically, stored in S3-compatible object storage.',
         'Implemented the CI/CD pipeline for the shop.',
       ],
     },
@@ -176,7 +178,7 @@ export const experience: Job[] = [
     start: '2019-03',
     end: '2022-01',
     role: {
-      de: 'Programmier-Nachhilfe und Englischnachhilfe',
+      de: 'Programmier- und Englischnachhilfe',
       en: 'Coding and English Tutor',
     },
     company: 'Toseye Fanavari Aria Kavosh',
@@ -227,6 +229,8 @@ export const skills: { group: T; items: Skill[] }[] = [
       { name: 'GitHub', level: 4 },
       { name: 'GitLab', level: 4 },
       { name: 'CI/CD', level: 4 },
+      { name: 'S3-kompatibler Objektspeicher', level: 4 },
+      { name: 'MinIO', level: 4 },
     ],
   },
 ]
