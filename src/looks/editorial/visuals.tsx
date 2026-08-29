@@ -28,54 +28,19 @@ export function Tag({ name }: { name: string }) {
 }
 
 /**
- * The CV's five filled circles, redrawn as a rule that fills — a measure, the
- * way a magazine prints one. `level` of five segments are inked.
- */
-export function Meter({ level, max = 5 }: { level: number; max?: number }) {
-  return (
-    <span
-      className="inline-flex shrink-0 gap-[3px]"
-      role="img"
-      aria-label={`${level} / ${max}`}
-    >
-      {Array.from({ length: max }, (_, i) => (
-        <span
-          key={i}
-          aria-hidden="true"
-          className={`h-[3px] w-4 rounded-full ${i < level ? 'bg-p-ink' : 'bg-line'}`}
-        />
-      ))}
-    </span>
-  )
-}
-
-/**
- * One skill: mark, name, and its measure where the CV gives one.
+ * One skill: its mark and its name.
  *
  * `name` is the canonical key the mark is drawn from; `label` is what the
  * reader sees, which differs only where the skill's name is a phrase rather
  * than a product.
  */
-export function SkillRow({
-  name,
-  label,
-  level,
-}: {
-  name: string
-  label?: string
-  level?: number
-}) {
+export function SkillRow({ name, label }: { name: string; label?: string }) {
   return (
     <li className="flex items-center gap-3 py-2">
       <SkillIcon name={name} />
       <span className="min-w-0 flex-1 truncate text-[0.875rem] text-text">
         {label ?? name}
       </span>
-      {level === undefined ? (
-        <span className="meta text-dim/60">—</span>
-      ) : (
-        <Meter level={level} />
-      )}
     </li>
   )
 }

@@ -57,9 +57,17 @@ export const profile = {
     de: ['Web-Entwickler', 'aus Dortmund,', 'der gerne erklärt.'],
     en: ['Web developer', 'in Dortmund', 'who likes to explain.'],
   } satisfies Record<Lang, string[]>,
+  /* The first line a recruiter reads, so it names the specialism rather than
+     the employers — the employers are three centimetres below it either way.
+     Every claim here is already evidenced by the roles: the media pipeline,
+     the Typesense index and the CI/CD pipeline are all bullets under hulle24.
+
+     "Pipelines and process automation", deliberately, and never "data
+     engineering": the latter reads as Spark/Airflow/dbt to anyone screening
+     CVs and invites the wrong interview. */
   intro: {
-    de: 'Seit 2023 baue ich bei hulle24 einen kompletten Online-Shop: Laravel im Backend, React im Frontend, Typesense für die Suche. Davor Web-Entwicklung in der IT-Abteilung der National Iranian Gas Company und freiberuflich für Web und Android.',
-    en: 'Since 2023 I have been building a complete online shop at hulle24: Laravel on the back end, React on the front, Typesense for search. Before that, web development in the IT department of the National Iranian Gas Company and freelance work for web and Android.',
+    de: 'Ich baue Backends, die Daten stufenweise verarbeiten — Medien-Pipelines, Suchindexierung, CI/CD — von der Datenbank bis zum Interface. Seit 2023 Laravel und React bei hulle24, daneben das Studium der Angewandten Informatik, Abschluss 2026.',
+    en: 'I build back ends that move data through stages — media pipelines, search indexing, CI/CD — from the database through to the interface. Laravel and React at hulle24 since 2023; applied computer science alongside it, finishing 2026.',
   } satisfies T,
   location: { de: 'Dortmund, Deutschland', en: 'Dortmund, Germany' } satisfies T,
   availability: {
@@ -191,9 +199,14 @@ export const experience: Job[] = [
   },
 ]
 
-/** Self-assessed, 1–5, exactly as the CV's filled dots.
- *  `level` is optional: a skill added since the CV shows no rating until you
- *  give it one, rather than being assigned a number I made up. */
+/**
+ * A skill.
+ *
+ * No rating: the CV's five filled dots are gone. A parser never read them —
+ * they carry no keyword — and against a human they only ever cost something,
+ * since a number you gave yourself is either a wound (a 3 beside a 5) or a
+ * dare. What a skill is worth is settled by the bullet it appears in.
+ */
 export type Skill = {
   /** The canonical name — the key the brand mark and the tech colour are
    *  looked up by, and never translated: 'React' is 'React' in both. */
@@ -202,55 +215,52 @@ export type Skill = {
    *  than a product: without this they would print untranslated in the
    *  English CV. */
   label?: T
-  level?: number
 }
 
 export const skills: { group: T; items: Skill[] }[] = [
   {
     group: { de: 'Frontend', en: 'Frontend' },
     items: [
-      { name: 'React', level: 5 },
-      { name: 'Tailwind CSS', level: 5 },
-      { name: 'HTML', level: 5 },
-      { name: 'CSS', level: 5 },
+      { name: 'React' },
+      { name: 'Tailwind CSS' },
+      { name: 'HTML' },
+      { name: 'CSS' },
       {
         name: 'Responsives Webdesign',
         label: { de: 'Responsives Webdesign', en: 'Responsive web design' },
-        level: 5,
       },
-      { name: 'jQuery', level: 4 },
-      { name: 'JavaScript', level: 3 },
+      { name: 'jQuery' },
+      { name: 'JavaScript' },
     ],
   },
   {
     group: { de: 'Backend', en: 'Backend' },
     items: [
-      { name: 'Laravel', level: 5 },
-      { name: 'PHP', level: 4 },
-      { name: 'Django', level: undefined }, // TODO: 1–5
-      { name: 'Go', level: undefined }, // TODO: 1–5
-      { name: 'PostgreSQL', level: 4 },
-      { name: 'MariaDB', level: 4 },
+      { name: 'Laravel' },
+      { name: 'PHP' },
+      { name: 'Django' }, // TODO: 1–5
+      { name: 'Go' }, // TODO: 1–5
+      { name: 'PostgreSQL' },
+      { name: 'MariaDB' },
     ],
   },
   {
     group: { de: 'DevOps & Tools', en: 'DevOps & Tools' },
     items: [
-      { name: 'Docker', level: 4 },
-      { name: 'Docker Compose', level: 4 },
-      { name: 'Git', level: 4 },
-      { name: 'GitHub', level: 4 },
-      { name: 'GitLab', level: 4 },
-      { name: 'CI/CD', level: 4 },
+      { name: 'Docker' },
+      { name: 'Docker Compose' },
+      { name: 'Git' },
+      { name: 'GitHub' },
+      { name: 'GitLab' },
+      { name: 'CI/CD' },
       {
         name: 'S3-kompatibler Objektspeicher',
         label: {
           de: 'S3-kompatibler Objektspeicher',
           en: 'S3-compatible object storage',
         },
-        level: 4,
       },
-      { name: 'MinIO', level: 4 },
+      { name: 'MinIO' },
     ],
   },
 ]
@@ -413,11 +423,6 @@ export const ui = {
     education: { de: 'Ausbildung', en: 'Education' } satisfies T,
     languages: { de: 'Sprachen', en: 'Languages' } satisfies T,
   },
-  /** Says what the dots mean, so they are not read as a certified rating. */
-  levelNote: {
-    de: 'Selbsteinschätzung, 1–5.',
-    en: 'Self-assessed, 1–5.',
-  } satisfies T,
   /** Tab names. Plain section names: an invented `.json`/`.sh` extension
    *  claimed a file type that nothing here actually is. */
   tabs: {

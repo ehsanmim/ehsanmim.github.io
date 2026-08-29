@@ -344,7 +344,6 @@ export function Skills() {
                   key={item.name}
                   name={item.name}
                   label={item.label ? t(item.label) : undefined}
-                  level={item.level}
                 />
               ))}
             </Card>
@@ -369,10 +368,6 @@ export function Skills() {
           </Card>
         </Reveal>
       </div>
-
-      <Reveal delay={240}>
-        <p className="meta mt-4 text-dim">{t(ui.levelNote)}</p>
-      </Reveal>
     </Section>
   )
 }

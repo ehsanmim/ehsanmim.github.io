@@ -16,7 +16,6 @@ import { fileURLToPath } from 'node:url'
 import PDFDocument from 'pdfkit'
 
 import {
-  about,
   cv,
   education,
   experience,
@@ -46,12 +45,26 @@ const H = 841.89
 const M = 40
 const CONTENT_W = W - M * 2
 
-/* Two columns, as on the reference: the narrative on the left, the scannable
- * lists on the right. The gutter is wide enough that a long skill name never
- * reads as a continuation of the bullet beside it. */
-const MAIN_W = 296
-const GUTTER = 22
-const SIDE_W = CONTENT_W - MAIN_W - GUTTER
+/* One column, full measure.
+ *
+ * A two-column CV is the classic parser failure: extractors that sort text by
+ * position — which most ATS still do — interleave the two, so the profile
+ * paragraph comes back shredded through the skills list. Tagging the document
+ * fixes the reading order for anything that reads tags, but not for the ones
+ * that don't, and this document's job is to survive all of them. So: one
+ * column, top to bottom, extracting in exactly the order it prints.
+ *
+ * Skills are set as one run per group rather than a list, which is both how a
+ * keyword matcher wants to read them and what buys back the height the second
+ * column was providing.
+ *
+ * The section eyebrows sit inline above their rule rather than in a gutter to
+ * the left. A gutter is a second column too: with the labels set out there,
+ * 'PROFILE' and 'EXPERIENCE' came back out of the file stuck together, ahead
+ * of the paragraph that belongs between them. The lines that inline headings
+ * cost are paid for by the measure the gutter was taking — every paragraph
+ * and bullet on the page now wraps a fifth less often.
+ */
 
 /* Where body content has to stop — the footer line lives below this. */
 const BOTTOM = H - M - 16
@@ -164,25 +177,18 @@ function build(lang, d = 1) {
     col.y += h + g(gap)
   }
 
-  const rule = (col) => {
-    at(col)
-    doc.markContent('Artifact')
-    doc
-      .moveTo(col.x, col.y)
-      .lineTo(col.x + col.w, col.y)
-      .lineWidth(0.5)
-      .strokeColor(LINE)
-      .stroke()
-    doc.endMarkedContent()
-  }
-
-  /** The eyebrow that heads every section: mono, letterspaced, over a rule. */
-  const head = (col, label, first = false) => {
-    if (!first) col.y += g(16)
+  /**
+   * The eyebrow that heads every section, set in the gutter to the left of the
+   * body with a rule running across the measure beside it.
+   *
+   * It is drawn first and tagged H2, so it leads its section in the extracted
+   * text exactly as it does on the page.
+   */
+  const head = (label, first = false) => {
+    if (!first) col.y += g(15)
     // The heading and whatever follows it are reserved together: a section
-    // title stranded at the foot of a column is worse than a short page.
-    ensure(col, g(20) + 26)
-    doc.font('mono-md').fontSize(7.2).fillColor(ACCENT)
+    // title stranded at the foot of a page is worse than a short page.
+    ensure(col, g(18) + 30)
     at(col)
     open()
     // The heading is tagged with the word as it reads, not as it is set: the
@@ -195,12 +201,18 @@ function build(lang, d = 1) {
         lineBreak: false,
       })
     })
-    col.y += g(11)
-    rule(col)
-    col.y += g(9)
+    col.y += g(10)
+    doc.markContent('Artifact')
+    doc
+      .moveTo(col.x, col.y)
+      .lineTo(col.x + col.w, col.y)
+      .lineWidth(0.5)
+      .strokeColor(LINE)
+      .stroke()
+    doc.endMarkedContent()
+    col.y += g(8)
   }
 
-  /** A bullet: an accent tick in the margin, the text hung off it. */
   /** A bullet: an accent tick in the margin, the text hung off it. */
   const bullet = (col, str, list) => {
     const indent = 9
@@ -209,19 +221,24 @@ function build(lang, d = 1) {
     const h = doc.heightOfString(str, opts)
     ensure(col, h)
     at(col)
+    // The tick is decoration, so it is drawn as an artifact and — importantly —
+    // drawn *outside* the structure element. pdfkit opens and closes its own
+    // marked-content around a struct's draw function, and a second marking
+    // nested inside it closes the wrong one: the file still renders, but every
+    // bullet leaves a mismatched EMC behind for the parser to trip over.
+    doc.markContent('Artifact')
+    doc
+      .rect(col.x + 1.5, col.y + 3.4, 3, 1.1)
+      .fillColor(ACCENT)
+      .fill()
+    doc.endMarkedContent()
+
     // Tagged as a list item, so a parser reads the four bullets under a job as
-    // four separate points rather than one run-on paragraph. The tick itself
-    // is decoration and is marked artifact — it must not reach the text.
+    // four separate points rather than one run-on paragraph.
     const li = doc.struct('LI')
     list.add(li)
     li.add(
       doc.struct('LBody', {}, () => {
-        doc.markContent('Artifact')
-        doc
-          .rect(col.x + 1.5, col.y + 3.4, 3, 1.1)
-          .fillColor(ACCENT)
-          .fill()
-        doc.endMarkedContent()
         doc.font('sans').fontSize(8.6).fillColor(INK)
         doc.text(str, col.x + indent, col.y, opts)
       }),
@@ -298,37 +315,40 @@ function build(lang, d = 1) {
   }
 
   const top = header()
-  const main = { x: M, w: MAIN_W, y: top, page: 0 }
-  const side = { x: M + MAIN_W + GUTTER, w: SIDE_W, y: top, page: 0 }
+  // One cursor now. The section eyebrow sits in a gutter to the left of the
+  // body rather than above it, which keeps the vertical rhythm tight without
+  // costing the text any measure.
+  const col = { x: M, w: CONTENT_W, y: top, page: 0 }
 
-  /* ── Main column: the profile, then the work ─────────────────────────── */
-  head(main, t(cv.summary), true)
-  for (const para of [t(profile.intro), t(about.body).at(-1)]) {
-    if (para) write(main, para, { font: 'sans', size: 8.8, color: INK, lineGap: 1.4, gap: 6 })
-  }
+  /* ── Profile ─────────────────────────────────────────────────────────── */
+  head(t(cv.summary), true)
+  // The intro alone. The second paragraph of `about` restates the studies,
+  // which the intro now names and Education dates — three times is twice too
+  // many on a page this short.
+  write(col, t(profile.intro), { font: 'sans', size: 8.9, color: INK, lineGap: 1.5 })
 
-  head(main, t(ui.sections.experience))
+  /* ── Experience ──────────────────────────────────────────────────────── */
+  head(t(ui.sections.experience))
   experience.forEach((job, i) => {
-    if (i > 0) main.y += g(9)
+    if (i > 0) col.y += g(10)
     // The entry's identity — role, employer, dates — is reserved as one block,
     // so a page break can never land between a job title and its dates.
-    ensure(main, 34)
-    write(main, t(job.role), {
+    ensure(col, 40)
+    write(col, t(job.role), {
       font: 'sans-sb',
-      size: 9.6,
+      size: 9.8,
       color: INK,
       lineBreak: false,
       role: 'H3',
     })
-    main.y += g(1.5)
-    write(main, job.company, { font: 'sans-md', size: 9, color: ACCENT, lineBreak: false })
-    main.y += g(1.5)
-    // Single-spaced separators, not the wider setting the eye would prefer: a
-    // text extractor treats a wide gap as a column break and shatters the line
-    // into fragments.
-    write(main, `${period(job, lang, t(ui.present))} · ${t(job.location)}`, {
+    col.y += g(2)
+    // Employer, dates and place on one line and in one run: a parser reading
+    // by position must not be able to split them into three stray fragments.
+    // Single-spaced separators for the same reason — a wide gap reads to an
+    // extractor as a column break.
+    write(col, `${job.company} · ${period(job, lang, t(ui.present))} · ${t(job.location)}`, {
       font: 'mono',
-      size: 7.4,
+      size: 7.6,
       color: DIM,
       lineBreak: false,
       gap: 5,
@@ -336,116 +356,86 @@ function build(lang, d = 1) {
     if (t(job.bullets).length) {
       const list = doc.struct('L')
       parent.add(list)
-      for (const b of t(job.bullets)) bullet(main, b, list)
+      for (const b of t(job.bullets)) bullet(col, b, list)
       list.end()
     }
     if (job.stack.length) {
-      main.y += g(2)
-      write(main, job.stack.join(' · '), {
-        font: 'mono',
-        size: 7.2,
-        color: DIM,
-        lineGap: 1.5,
-      })
+      col.y += g(2.5)
+      write(col, job.stack.join(' · '), { font: 'mono', size: 7.4, color: ACCENT, lineGap: 1.5 })
     }
   })
 
-  /* ── Sidebar: the scannable lists ────────────────────────────────────── */
-  head(side, t(ui.sections.skills), true)
-  skills.forEach((group, gi) => {
-    if (gi > 0) side.y += g(6)
-    write(side, t(group.group), {
+  /* ── Skills ──────────────────────────────────────────────────────────── */
+  head(t(ui.sections.skills))
+  skills.forEach((group, i) => {
+    if (i > 0) col.y += g(5)
+    ensure(col, 24)
+    // One run per group, not one line per skill. A keyword matcher wants the
+    // names in a row, and the row costs a fifth of the height the list did.
+    const names = group.items.map((sk) => (sk.label ? t(sk.label) : sk.name)).join(' · ')
+    write(col, t(group.group), {
       font: 'sans-sb',
       size: 8.4,
       color: INK,
       lineBreak: false,
-      gap: 4,
+      gap: 2,
     })
-    for (const skill of group.items) {
-      const shown = skill.label ? t(skill.label) : skill.name
-      doc.font('sans').fontSize(8.2)
-      const dotsW = skill.level ? 5 * 5.2 : 0
-      const nameW = side.w - dotsW - 8
-      const h = Math.max(doc.heightOfString(shown, { width: nameW }), 9)
-      ensure(side, h)
-      at(side)
-      emit('P', () => {
-        doc.font('sans').fontSize(8.2).fillColor(INK)
-        doc.text(shown, side.x, side.y, { width: nameW })
-      })
-      if (skill.level) {
-        // The CV's filled dots, kept as dots: a five-step self-assessment is
-        // more honest as a scale than as a word like "advanced". They are
-        // marked artifact — a parser should come away with 'React', not with
-        // 'React' followed by a rating it will read as noise.
-        doc.markContent('Artifact')
-        for (let dot = 0; dot < 5; dot++) {
-          doc
-            .circle(side.x + side.w - dotsW + 2.4 + dot * 5.2, side.y + 4, 1.7)
-            .fillColor(dot < skill.level ? ACCENT : LINE)
-            .fill()
-        }
-        doc.endMarkedContent()
-      }
-      side.y += h + g(1.4)
-    }
+    write(col, names, { font: 'sans', size: 8.4, color: DIM, lineGap: 1.6 })
   })
-  write(side, t(ui.levelNote), { font: 'mono', size: 6.6, color: DIM, lineGap: 1 })
 
-  head(side, t(ui.sections.languages))
+  /* ── Languages ───────────────────────────────────────────────────────── */
+  head(t(ui.sections.languages))
   languages.forEach((l, i) => {
-    if (i > 0) side.y += g(3)
-    ensure(side, 20)
-    at(side)
-    // Name and level are set at the two ends of one line; filing them as a
-    // single paragraph keeps 'German' and 'C1' together when the text is
-    // pulled out, instead of stranding the levels in a column of their own.
-    emit('P', () => {
-      doc.font('sans-sb').fontSize(8.4).fillColor(INK)
-      doc.text(t(l.name), side.x, side.y, { width: side.w - 46, lineBreak: false })
-      doc.font('mono').fontSize(7.4).fillColor(ACCENT)
-      doc.text(t(l.level), side.x, side.y + 0.6, {
-        width: side.w,
-        align: 'right',
-        lineBreak: false,
-      })
+    if (i > 0) col.y += g(3)
+    ensure(col, 14)
+    // Name, level and evidence as one sentence-like run, so 'German' and 'C1'
+    // cannot be separated by an extractor that sorts columns.
+    const note = t(l.note)
+    write(col, `${t(l.name)} — ${t(l.level)}${note ? ` · ${note}` : ''}`, {
+      font: 'sans',
+      size: 8.4,
+      color: INK,
+      lineGap: 1.4,
     })
-    side.y += g(10.5)
-    if (t(l.note)) write(side, t(l.note), { font: 'sans', size: 7.4, color: DIM, lineGap: 1 })
   })
 
-  head(side, t(ui.sections.education))
+  /* ── Education ───────────────────────────────────────────────────────── */
+  head(t(ui.sections.education))
   education.forEach((e, i) => {
-    if (i > 0) side.y += g(6)
-    ensure(side, 26)
-    write(side, t(e.what), {
+    if (i > 0) col.y += g(6)
+    ensure(col, 26)
+    write(col, t(e.what), {
       font: 'sans-sb',
-      size: 8.4,
+      size: 8.6,
       color: INK,
       lineGap: 1,
-      gap: 1,
+      gap: 2,
       role: 'H3',
     })
-    if (e.where) write(side, e.where, { font: 'sans', size: 7.8, color: DIM, lineGap: 1, gap: 1 })
-    write(side, period(e, lang, t(ui.present)), {
-      font: 'mono',
-      size: 7.2,
-      color: ACCENT,
-      lineBreak: false,
-      gap: t(e.note) ? 1.5 : 0,
-    })
-    if (t(e.note)) write(side, t(e.note), { font: 'sans', size: 7.4, color: DIM, lineGap: 1 })
+    // Institution, dates and whatever the entry notes, all on one run. Three
+    // separate lines per entry spent a third of the page on the least
+    // load-bearing section, and a parser reads the merged line no differently.
+    const parts = [e.where, period(e, lang, t(ui.present)), t(e.note)].filter(Boolean)
+    write(col, parts.join(' · '), { font: 'mono', size: 7.4, color: DIM, lineGap: 1.4 })
   })
 
+  /* ── Projects, once there are any ────────────────────────────────────── */
   if (projects.length) {
-    head(side, t(ui.sections.projects))
+    head(t(ui.sections.projects))
     projects.forEach((p, i) => {
-      if (i > 0) side.y += g(6)
-      ensure(side, 26)
-      write(side, p.name, { font: 'sans-sb', size: 8.4, color: INK, lineBreak: false, gap: 1.5 })
-      write(side, t(p.blurb), { font: 'sans', size: 7.8, color: DIM, lineGap: 1, gap: 1.5 })
+      if (i > 0) col.y += g(6)
+      ensure(col, 28)
+      write(col, p.name, {
+        font: 'sans-sb',
+        size: 8.6,
+        color: INK,
+        lineBreak: false,
+        gap: 2,
+        role: 'H3',
+      })
+      write(col, t(p.blurb), { font: 'sans', size: 8.2, color: DIM, lineGap: 1.4, gap: 2 })
       if (p.stack.length) {
-        write(side, p.stack.join(' · '), { font: 'mono', size: 7, color: ACCENT, lineGap: 1 })
+        write(col, p.stack.join(' · '), { font: 'mono', size: 7.4, color: ACCENT, lineGap: 1.4 })
       }
     })
   }
@@ -479,6 +469,7 @@ function build(lang, d = 1) {
     doc.page.margins.bottom = keep
   }
 
+  if (process.env.CV_DEBUG) console.error(`  [${lang} d=${d}] ends at ${col.y.toFixed(0)} on page ${col.page}, bottom ${BOTTOM.toFixed(0)}, over by ${(col.page * (BOTTOM - M) + col.y - BOTTOM).toFixed(0)}`)
   for (const el of opened) el.end()
   root.end()
 
