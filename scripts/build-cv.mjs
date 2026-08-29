@@ -469,7 +469,6 @@ function build(lang, d = 1) {
     doc.page.margins.bottom = keep
   }
 
-  if (process.env.CV_DEBUG) console.error(`  [${lang} d=${d}] ends at ${col.y.toFixed(0)} on page ${col.page}, bottom ${BOTTOM.toFixed(0)}, over by ${(col.page * (BOTTOM - M) + col.y - BOTTOM).toFixed(0)}`)
   for (const el of opened) el.end()
   root.end()
 

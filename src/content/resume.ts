@@ -217,50 +217,104 @@ export type Skill = {
   label?: T
 }
 
+/**
+ * Grouped for scanning, not ranked. The canonical `name` is what a keyword
+ * matcher reads and what the brand mark is drawn from; `label` appears only
+ * where a term is a phrase that genuinely has a German form — product names
+ * and the loanwords German developers actually use are left alone.
+ */
 export const skills: { group: T; items: Skill[] }[] = [
-  {
-    group: { de: 'Frontend', en: 'Frontend' },
-    items: [
-      { name: 'React' },
-      { name: 'Tailwind CSS' },
-      { name: 'HTML' },
-      { name: 'CSS' },
-      {
-        name: 'Responsives Webdesign',
-        label: { de: 'Responsives Webdesign', en: 'Responsive web design' },
-      },
-      { name: 'jQuery' },
-      { name: 'JavaScript' },
-    ],
-  },
   {
     group: { de: 'Backend', en: 'Backend' },
     items: [
-      { name: 'Laravel' },
       { name: 'PHP' },
-      { name: 'Django' }, // TODO: 1–5
-      { name: 'Go' }, // TODO: 1–5
-      { name: 'PostgreSQL' },
-      { name: 'MariaDB' },
+      { name: 'Laravel' },
+      { name: 'Node.js' },
+      { name: 'Bun' },
+      { name: 'Python' },
+      { name: 'FastAPI' },
+      { name: 'Flask' },
+      { name: 'Go' },
+      { name: 'Echo' },
+      { name: 'Laravel Reverb' },
     ],
   },
   {
-    group: { de: 'DevOps & Tools', en: 'DevOps & Tools' },
+    group: { de: 'Frontend', en: 'Frontend' },
     items: [
+      { name: 'TypeScript' },
+      { name: 'JavaScript' },
+      { name: 'React' },
+      { name: 'React Router' },
+      { name: 'Vue' },
+      { name: 'Alpine.js' },
+      { name: 'jQuery' },
+      { name: 'Vite' },
+      { name: 'Inertia.js' },
+      { name: 'Zustand' },
+    ],
+  },
+  {
+    group: { de: 'DevOps', en: 'DevOps' },
+    items: [
+      { name: 'Linux' },
+      { name: 'Bash' },
       { name: 'Docker' },
       { name: 'Docker Compose' },
+      { name: 'Docker Swarm' },
+      { name: 'CI/CD' },
+      { name: 'AWS' },
+      { name: 'GCP' },
+      { name: 'Hetzner' },
+      { name: 'Selenium' },
+      { name: 'BrowserStack' },
       { name: 'Git' },
       { name: 'GitHub' },
       { name: 'GitLab' },
-      { name: 'CI/CD' },
+    ],
+  },
+  {
+    group: { de: 'Design', en: 'Design' },
+    items: [
+      { name: 'HTML' },
+      { name: 'CSS' },
+      { name: 'Tailwind CSS' },
+      { name: 'Bootstrap' },
+      { name: 'Twig' },
+      { name: 'Blade' },
+    ],
+  },
+  {
+    group: { de: 'Datenbanken', en: 'Databases' },
+    items: [
+      { name: 'MySQL' },
+      { name: 'MariaDB' },
+      { name: 'PostgreSQL' },
+      { name: 'SQLite' },
+      { name: 'Redis' },
+    ],
+  },
+  {
+    group: { de: 'Konzepte', en: 'Principles' },
+    items: [
+      { name: 'TDD' },
+      { name: 'Microservices' },
       {
-        name: 'S3-kompatibler Objektspeicher',
-        label: {
-          de: 'S3-kompatibler Objektspeicher',
-          en: 'S3-compatible object storage',
-        },
+        name: 'Modular data processing',
+        label: { de: 'Modulare Datenverarbeitung', en: 'Modular data processing' },
       },
-      { name: 'MinIO' },
+      { name: 'Serverless' },
+      { name: 'Authentication', label: { de: 'Authentifizierung', en: 'Authentication' } },
+      { name: 'Validation', label: { de: 'Validierung', en: 'Validation' } },
+      { name: 'Broadcasting' },
+      { name: 'Notifications', label: { de: 'Benachrichtigungen', en: 'Notifications' } },
+      { name: 'Search engines', label: { de: 'Suchmaschinen', en: 'Search engines' } },
+      { name: 'Caching' },
+      { name: 'Queueing' },
+      { name: 'Rate limiting' },
+      { name: 'Localization', label: { de: 'Lokalisierung', en: 'Localization' } },
+      { name: 'Optimization', label: { de: 'Optimierung', en: 'Optimization' } },
+      { name: 'Logging' },
     ],
   },
 ]
