@@ -41,6 +41,28 @@ const TECH_COLORS: Record<string, string> = {
   'ci/cd': '#8b949e',
   rest: '#8b949e',
   queues: '#8b949e',
+
+  /* Added with the fuller skills list. Brand colours, except where the brand's
+   * own is black or near-black — those are left out rather than mapped, since
+   * a glyph tinted #000 disappears against the dark theme and the grey
+   * fallback at least stays visible in both. */
+  'node.js': '#539e43',
+  bun: '#e9c8a0',
+  fastapi: '#009688',
+  'laravel reverb': '#FF2D20',
+  'react router': '#ca4245',
+  'alpine.js': '#77c1d2',
+  'inertia.js': '#9553e9',
+  'docker swarm': '#2496ed',
+  aws: '#ff9900',
+  gcp: '#4285f4',
+  hetzner: '#d50c2d',
+  selenium: '#43b02a',
+  browserstack: '#e66c37',
+  bootstrap: '#7952b3',
+  twig: '#7ab800',
+  blade: '#FF2D20',
+  sqlite: '#4a90b8',
 }
 
 export function techColor(name: string): string {

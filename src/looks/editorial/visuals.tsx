@@ -17,31 +17,19 @@ export function Dot({ name, className = '' }: { name: string; className?: string
   )
 }
 
-/** A tech tag: mark + name, compact enough to sit several to a row. */
-export function Tag({ name }: { name: string }) {
+/**
+ * A tech tag: mark + name, compact enough to sit several to a row.
+ *
+ * `name` is the canonical key the mark is drawn from and is never translated;
+ * `label` is what the reader sees, which differs only where the skill's name
+ * is a phrase rather than a product.
+ */
+export function Tag({ name, label }: { name: string; label?: string }) {
   return (
     <span className="meta inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-dim">
       <SkillIcon name={name} />
-      {name}
+      {label ?? name}
     </span>
-  )
-}
-
-/**
- * One skill: its mark and its name.
- *
- * `name` is the canonical key the mark is drawn from; `label` is what the
- * reader sees, which differs only where the skill's name is a phrase rather
- * than a product.
- */
-export function SkillRow({ name, label }: { name: string; label?: string }) {
-  return (
-    <li className="flex items-center gap-3 py-2">
-      <SkillIcon name={name} />
-      <span className="min-w-0 flex-1 truncate text-[0.875rem] text-text">
-        {label ?? name}
-      </span>
-    </li>
   )
 }
 

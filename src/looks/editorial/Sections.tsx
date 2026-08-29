@@ -14,7 +14,7 @@ import { useState, type ReactNode } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
 import { CommitGraph, type Commit, type Lane } from './CommitGraph'
-import { Dot, Points, SkillRow, Tag } from './visuals'
+import { Dot, Points, Tag } from './visuals'
 
 /* ── the editorial furniture ──────────────────────────────────────────────── */
 
@@ -56,17 +56,6 @@ function Section({
         <div className="min-w-0">{children}</div>
       </div>
     </section>
-  )
-}
-
-/** A boxed sub-block: skills groups, languages. */
-function Card({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div className="h-full rounded-xl border border-line bg-surface p-5">
-      <h3 className="eyebrow text-dim">{title}</h3>
-      <div className="rule mt-3" />
-      <ul className="mt-1 divide-y divide-line">{children}</ul>
-    </div>
   )
 }
 
@@ -335,23 +324,30 @@ export function Skills() {
       label={t(ui.sections.skills)}
       heading={t(ui.sections.skillsHeading)}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Pills, wrapped, rather than a row per skill: sixty skills as a list
+          was a column of sixty lines, and the group is the only grouping that
+          carries meaning — the order inside it never did. Each group is a full
+          measure so the pills reflow, instead of two narrow columns forcing a
+          break every three names. */}
+      <div className="space-y-6">
         {skills.map((group, i) => (
-          <Reveal key={t(group.group)} delay={i * 60}>
-            <Card title={t(group.group)}>
+          <Reveal key={t(group.group)} delay={i * 50}>
+            <h3 className="eyebrow text-dim">{t(group.group)}</h3>
+            <div className="rule mt-3" />
+            <ul className="mt-4 flex flex-wrap gap-2">
               {group.items.map((item) => (
-                <SkillRow
-                  key={item.name}
-                  name={item.name}
-                  label={item.label ? t(item.label) : undefined}
-                />
+                <li key={item.name}>
+                  <Tag name={item.name} label={item.label ? t(item.label) : undefined} />
+                </li>
               ))}
-            </Card>
+            </ul>
           </Reveal>
         ))}
 
-        <Reveal delay={180}>
-          <Card title={t(ui.sections.languages)}>
+        <Reveal delay={skills.length * 50}>
+          <h3 className="eyebrow text-dim">{t(ui.sections.languages)}</h3>
+          <div className="rule mt-3" />
+          <ul className="mt-4 divide-y divide-line">
             {languages.map((l) => (
               <li key={t(l.name)} className="flex items-center gap-3 py-2">
                 <span className="min-w-0 flex-1 truncate text-[0.875rem] text-text">
@@ -365,7 +361,7 @@ export function Skills() {
                 </span>
               </li>
             ))}
-          </Card>
+          </ul>
         </Reveal>
       </div>
     </Section>
