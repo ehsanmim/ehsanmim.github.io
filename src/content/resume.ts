@@ -361,8 +361,8 @@ export const ui = {
   sections: {
     experience: { de: 'Erfahrung', en: 'Experience' } satisfies T,
     experienceHeading: {
-      de: 'Wo ich gearbeitet habe.',
-      en: 'Where I have worked.',
+      de: 'Mein Werdegang.',
+      en: 'How I got here.',
     } satisfies T,
     skills: { de: 'Kenntnisse', en: 'Skills' } satisfies T,
     skillsHeading: { de: 'Womit ich arbeite.', en: 'What I work with.' } satisfies T,
@@ -394,7 +394,7 @@ export const ui = {
    *  which is printed as-is — a branch is not translated. */
   branches: {
     wip: { de: 'Laufend', en: 'Ongoing' } satisfies T,
-    main: { de: 'Abgeschlossene Stationen', en: 'Finished roles' } satisfies T,
+    main: { de: 'Arbeit', en: 'Work' } satisfies T,
     edu: { de: 'Ausbildung', en: 'Studies' } satisfies T,
   },
   present: { de: 'heute', en: 'present' } satisfies T,
