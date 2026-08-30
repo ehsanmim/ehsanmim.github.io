@@ -99,7 +99,7 @@ function makeDoc(lang) {
     margins: { top: M, bottom: M, left: M, right: M },
     bufferPages: true,
     info: {
-      Title: `${profile.name} — ${cv.docTitle[lang]}`,
+      Title: `${profile.name} · ${cv.docTitle[lang]}`,
       Author: profile.name,
       Subject: profile.role[lang],
       Keywords: skills.flatMap((g) => g.items.map((s) => s.name)).join(', '),
@@ -486,7 +486,7 @@ function build(lang, d = 1) {
     // Name, level and evidence as one sentence-like run, so 'German' and 'C1'
     // cannot be separated by an extractor that sorts columns.
     const note = t(l.note)
-    write(col, `${t(l.name)} — ${t(l.level)}${note ? ` · ${note}` : ''}`, {
+    write(col, `${t(l.name)}: ${t(l.level)}${note ? ` · ${note}` : ''}`, {
       font: 'sans',
       size: 8.4,
       color: INK,

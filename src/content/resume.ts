@@ -45,7 +45,7 @@ export function period(
   present: string,
 ): string {
   const to = span.end ? formatMonth(span.end, lang) : present
-  return span.start ? `${formatMonth(span.start, lang)} — ${to}` : to
+  return span.start ? `${formatMonth(span.start, lang)} – ${to}` : to
 }
 
 export const profile = {
@@ -57,17 +57,18 @@ export const profile = {
     de: ['Web-Entwickler', 'aus Dortmund,', 'der gerne erklärt.'],
     en: ['Web developer', 'in Dortmund', 'who likes to explain.'],
   } satisfies Record<Lang, string[]>,
-  /* The first line a recruiter reads, so it names the specialism rather than
-     the employers — the employers are three centimetres below it either way.
-     Every claim here is already evidenced by the roles: the media pipeline,
-     the Typesense index and the CI/CD pipeline are all bullets under hulle24.
+  /* The first line a recruiter reads, so it leads with the years and the
+     specialism rather than the employers: the employers are three centimetres
+     below it either way. Every claim here is already evidenced by the roles:
+     the media pipeline, the Typesense index and the CI/CD pipeline are all
+     bullets under hulle24, and the seven years match the 2019 in `facts`.
 
      "Pipelines and process automation", deliberately, and never "data
      engineering": the latter reads as Spark/Airflow/dbt to anyone screening
      CVs and invites the wrong interview. */
   intro: {
-    de: 'Ich baue Backends, die Daten stufenweise verarbeiten — Medien-Pipelines, Suchindexierung, CI/CD — von der Datenbank bis zum Interface. Seit 2023 Laravel und React bei hulle24, daneben das Studium der Angewandten Informatik, Abschluss 2026.',
-    en: 'I build back ends that move data through stages — media pipelines, search indexing, CI/CD — from the database through to the interface. Laravel and React at hulle24 since 2023; applied computer science alongside it, finishing 2026.',
+    de: 'Entwickler mit sieben Jahren Erfahrung: Backends, die Daten stufenweise verarbeiten, von Medien-Pipelines über Suchindexierung bis CI/CD. Versionskontrolle und Tests haben Vorrang, entwickelt wird testgetrieben. Mit KI im Alltag baue ich mehr Automatisierung, inklusive eigener MCP-Server. Seit 2023 Laravel und React bei hulle24, daneben das Studium der Angewandten Informatik, Abschluss 2026.',
+    en: 'Developer with seven years of experience building back ends that move data through stages, from media pipelines through search indexing to CI/CD. Version control and testing take priority, and I work test-driven. With AI in the mix I build more automation, my own MCP servers included. Laravel and React at hulle24 since 2023, applied computer science alongside it, finishing 2026.',
   } satisfies T,
   location: { de: 'Dortmund, Deutschland', en: 'Dortmund, Germany' } satisfies T,
   availability: {
@@ -101,17 +102,17 @@ export const profile = {
 export const about = {
   eyebrow: { de: 'Über mich', en: 'About' } satisfies T,
   heading: {
-    de: 'Erklären ist die Hälfte der Arbeit.',
-    en: 'Explaining is half the work.',
+    de: 'Planung ist der halbe Weg.',
+    en: 'Planning is half the work.',
   } satisfies T,
   body: {
     de: [
       'Heute baue ich bei hulle24 einen Online-Shop von der Datenbank bis zum Interface. Davor: die IT-Abteilung der National Iranian Gas Company, freiberufliche Projekte über Parscoders, und über Jahre Programmier- und Englischnachhilfe für Gruppen und Einzelpersonen.',
-      'Seit Oktober 2022 studiere ich Angewandte Informatik, Abschluss im September 2026 — die Ecke, in der Technik, Prozesse und Software zusammenkommen, ist genau die, in der ich arbeiten will.',
+      'Seit Oktober 2022 studiere ich Angewandte Informatik, Abschluss im September 2026. Die Ecke, in der Technik, Prozesse und Software zusammenkommen, ist genau die, in der ich arbeiten will.',
     ],
     en: [
       'Today I build an online shop at hulle24, from the database through to the interface. Before that: the IT department of the National Iranian Gas Company, freelance projects through Parscoders, and years of coding and English tuition for groups and individuals.',
-      'Since October 2022 I have been studying applied computer science, finishing in September 2026 — the corner where engineering, process and software meet is exactly where I want to work.',
+      'Since October 2022 I have been studying applied computer science, finishing in September 2026. The corner where engineering, process and software meet is exactly where I want to work.',
     ],
   } satisfies TList,
 }
@@ -140,7 +141,7 @@ export const experience: Job[] = [
     },
     company: 'hulle24 GmbH',
     location: { de: 'Deutschland', en: 'Germany' },
-    stack: ['Laravel', 'React', 'Typesense', 'S3', 'MinIO', 'CI/CD'],
+    stack: ['Laravel', 'React', 'Typesense', 'S3', 'RustFS', 'CI/CD'],
     bullets: {
       de: [
         'Planung und Entwicklung eines kompletten Online-Shops: Laravel im Backend, React im Frontend.',
@@ -398,7 +399,7 @@ export const education: {
     end: '2018-09',
     kind: 'degree',
     what: { de: 'B.Sc. Maschinenbau', en: 'B.Sc. Mechanical Engineering' },
-    where: 'Azad-Universität — Niederlassung für Wissenschaften und Forschung',
+    where: 'Azad-Universität, Niederlassung für Wissenschaften und Forschung',
     /* Off the chart: it pulled the axis back to 2014, squeezing every role
        into the right-hand third. Still listed under Ausbildung. */
     chart: false,
@@ -435,8 +436,8 @@ export const contact = {
   eyebrow: { de: 'Kontakt', en: 'Contact' } satisfies T,
   heading: { de: 'Lass uns reden.', en: 'Let’s talk.' } satisfies T,
   body: {
-    de: 'Ob ein konkretes Projekt oder ein loses Gespräch — schreib mir einfach.',
-    en: 'Whether it is a concrete project or a loose conversation — just write.',
+    de: 'Ob ein konkretes Projekt oder ein loses Gespräch: schreib mir einfach.',
+    en: 'Whether it is a concrete project or a loose conversation, just write.',
   } satisfies T,
   cta: { de: 'E-Mail schreiben', en: 'Send an email' } satisfies T,
 }
