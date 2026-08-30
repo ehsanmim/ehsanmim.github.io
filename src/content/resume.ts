@@ -382,8 +382,8 @@ export const education: {
   },
   {
     /* Fills the gap between the roles in Iran ending and hulle24 starting. */
-    start: '2022-02',
-    end: '2022-10',
+    start: '2022-04',
+    end: '2022-08',
     kind: 'language',
     what: {
       de: 'Deutschkurs & Umzug nach Deutschland',
