@@ -46,7 +46,7 @@ function Section({
               <span aria-hidden="true" className="h-px w-4 bg-line md:hidden" />
               <span>{label}</span>
             </div>
-            <h2 className="display text-[2rem] text-text sm:text-[2.5rem]">{heading}</h2>
+            <h2 className="display display-lg text-[2rem] text-text sm:text-[2.5rem]">{heading}</h2>
           </div>
           <div className="rule mt-6" />
         </header>
@@ -79,7 +79,7 @@ export function Hero() {
       {/* The headline is written as three lines in the content file, and it is
           set as three lines — the break is the design, not the container's. */}
       <Reveal delay={60}>
-        <h1 className="display mt-5 text-[2.75rem] text-text sm:text-[4.25rem]">
+        <h1 className="display display-xl mt-5 text-[2.75rem] text-text sm:text-[4.25rem]">
           {t(profile.headline).map((line, i) => (
             <span key={line} className="block">
               {i === 2 ? <em className="text-p-ink not-italic">{line}</em> : line}
@@ -91,7 +91,7 @@ export function Hero() {
       <Reveal delay={120}>
         <div className="mt-8 grid gap-8 md:grid-cols-[7rem_1fr] md:gap-8">
           <div className="eyebrow text-dim md:pt-1.5">{t(profile.location)}</div>
-          <p className="max-w-xl text-[1.0625rem] leading-relaxed text-dim">
+          <p className="max-w-xl text-[1.0625rem] leading-[1.7] text-dim">
             {t(profile.intro)}
           </p>
         </div>
@@ -128,7 +128,7 @@ export function Hero() {
           {profile.facts.map((fact) => (
             <div key={fact.value} className="bg-surface px-5 py-4">
               <dt className="eyebrow text-dim">{t(fact.label)}</dt>
-              <dd className="display mt-1.5 text-3xl text-text">{fact.value}</dd>
+              <dd className="display display-num mt-1.5 text-[1.875rem] text-text">{fact.value}</dd>
             </div>
           ))}
           <div className="bg-surface px-5 py-4">
@@ -159,11 +159,11 @@ export function About() {
       <Reveal>
         {/* A pull-lede in display type, then the body at reading size. The
             first paragraph is the one that gets read; it is set like it. */}
-        <p className="display max-w-2xl text-[1.5rem] leading-snug text-text sm:text-[1.75rem]">
+        <p className="display display-lg max-w-2xl text-[1.5rem] text-text sm:text-[1.75rem]">
           {lede}
         </p>
         {rest.length > 0 && (
-          <div className="mt-6 max-w-2xl space-y-4 text-[0.9375rem] leading-relaxed text-dim">
+          <div className="mt-6 max-w-2xl space-y-4 text-[1rem] leading-[1.7] text-dim">
             {rest.map((para) => (
               <p key={para.slice(0, 24)}>{para}</p>
             ))}
@@ -253,7 +253,7 @@ export function Experience() {
           <span aria-hidden="true" className="h-px w-4 bg-line md:hidden" />
           <span>{t(ui.sections.experience)}</span>
         </div>
-        <h2 className="display text-[2rem] text-text sm:text-[2.5rem]">
+        <h2 className="display display-lg text-[2rem] text-text sm:text-[2.5rem]">
           {t(ui.sections.experienceHeading)}
         </h2>
       </div>
@@ -350,7 +350,7 @@ export function Skills() {
           <ul className="mt-4 divide-y divide-line">
             {languages.map((l) => (
               <li key={t(l.name)} className="flex items-center gap-3 py-2">
-                <span className="min-w-0 flex-1 truncate text-[0.875rem] text-text">
+                <span className="min-w-0 flex-1 truncate text-[0.9375rem] text-text">
                   {t(l.name)}
                 </span>
                 {t(l.note) && (
@@ -393,12 +393,12 @@ export function Projects() {
               >
                 <div className="flex items-baseline gap-2">
                   <Dot name={project.stack[0] ?? ''} />
-                  <span className="text-[0.9375rem] font-medium text-text">
+                  <span className="text-[0.9375rem] font-semibold text-text">
                     {project.name}
                   </span>
                   <span className="meta ml-auto text-dim">{project.year}</span>
                 </div>
-                <p className="mt-3 line-clamp-3 text-[0.875rem] leading-relaxed text-dim">
+                <p className="mt-3 line-clamp-3 text-[0.9375rem] leading-[1.6] text-dim">
                   {t(project.blurb)}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-1.5">
@@ -428,13 +428,13 @@ export function Contact() {
       heading={t(contact.heading)}
     >
       <Reveal>
-        <p className="max-w-xl text-[1.0625rem] leading-relaxed text-dim">
+        <p className="max-w-xl text-[1.0625rem] leading-[1.7] text-dim">
           {t(contact.body)}
         </p>
         {/* The address, set large. It is the one thing this section is for. */}
         <a
           href={`mailto:${profile.email}`}
-          className="display mt-8 block text-[1.75rem] break-all text-p-ink transition-opacity hover:opacity-80 sm:text-[2.5rem]"
+          className="display display-lg mt-8 block text-[1.75rem] break-words text-p-ink transition-opacity hover:opacity-80 sm:text-[2.5rem]"
         >
           {profile.email}
         </a>

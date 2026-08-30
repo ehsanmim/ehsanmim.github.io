@@ -21,7 +21,8 @@
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --font-display:
+    'Newsreader', 'Iowan Old Style', Charter, 'Source Serif 4', Georgia, serif;
 }
 
 @layer base {
@@ -69,9 +70,18 @@
     background-color: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-sans);
+    /* Every face here is variable and every weight the page asks for is inside
+     * the loaded range, so a synthesised bold would only ever be a fallback
+     * font faking one — better to let the fallback look light than smeared. */
     font-synthesis-weight: none;
+    /* Both faces carry an optical-size axis: let the browser pick the cut from
+     * the rendered size, so 12px metadata gets the open, sturdy drawing and the
+     * 68px headline gets the fine, closed one. */
+    font-optical-sizing: auto;
+    font-size: 16px;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   ::selection {
@@ -87,20 +97,51 @@
 }
 
 @layer components {
-  /* Display type. Instrument Serif is drawn tight and tall; at headline sizes
-   * it needs the leading pulled in and the tracking eased out by hand. */
+  /* Display type. Newsreader at 500 has enough stem weight to hold its colour
+   * against Inter beside it — at 400 the serif reads as the faded one — and its
+   * optical-size axis keeps the same voice from the 18px masthead name up to
+   * the 68px headline, so one class covers the whole range.
+   *
+   * Leading is set per size rather than globally: `.display` alone is the
+   * mid-range setting, and the two modifiers take the extremes. */
   .display {
     font-family: var(--font-display);
-    font-weight: 400;
-    line-height: 0.98;
-    letter-spacing: -0.015em;
+    font-weight: 500;
+    line-height: 1.14;
+    letter-spacing: -0.005em;
+  }
+
+  /* Headline sizes. Big type needs the leading pulled in and the tracking
+   * closed up, or the lines drift apart and the words fall open. */
+  .display-xl {
+    line-height: 1.04;
+    letter-spacing: -0.018em;
+  }
+
+  /* Set in the middle of running text — a pull-lede, a section heading —
+   * where the line wants a little more air than a headline does. */
+  .display-lg {
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+  }
+
+  /* Figures set in the serif: same drawing, lining and tabular, so a column of
+   * them lines up on the decimal instead of wandering. */
+  .display-num {
+    font-variant-numeric: lining-nums tabular-nums;
   }
 
   /* The eyebrow that heads every section: a number, a word, a rule. */
   .eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.14em;
+    /* 12px, not 11px. Uppercase mono loses the ascender/descender shapes a
+     * reader picks words out by, so it has to give the size back — and the
+     * tracking comes in a little, because 0.14em at this size reads as loose
+     * letters rather than as one word. */
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
   }
 
@@ -109,12 +150,15 @@
     background: var(--color-line);
   }
 
-  /* Small caps figures for dates and hashes — mono, dimmed, never competing
-   * with the serif. */
+  /* Dates, hashes, locations — mono, dimmed, never competing with the serif.
+   * Mixed case rather than caps, so unlike `.eyebrow` it keeps its word shapes;
+   * still 12px, because 11px mono is where digits start to blur together. */
   .meta {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.02em;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   .link-underline {

@@ -76,7 +76,7 @@ export function Shell() {
                   stamp rather than as one more bordered chip in the row. */}
               <Logo className="h-9 w-9 shrink-0 rounded-[10px] bg-text text-bg" />
               <span className="min-w-0">
-                <span className="display block truncate text-lg text-text">
+                <span className="display block truncate text-[1.125rem] leading-tight text-text">
                   {profile.name}
                 </span>
                 <span className="meta block truncate text-dim">{t(profile.role)}</span>

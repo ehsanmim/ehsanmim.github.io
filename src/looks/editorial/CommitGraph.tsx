@@ -555,7 +555,7 @@ function Card({ commit, focused }: { commit: Commit; focused: boolean }) {
         <span>{commit.when}</span>
         {commit.ref && (
           <span
-            className="rounded-full border px-1.5 py-px text-[0.625rem]"
+            className="rounded-full border px-1.5 py-px text-[0.6875rem] tracking-wide"
             style={{
               borderColor: `color-mix(in oklab, ${laneColor(commit.lane)} 55%, transparent)`,
               color: laneColor(commit.lane),
