@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LuBriefcase, LuGraduationCap } from 'react-icons/lu'
 import { Reveal } from '../../lib/reveal'
-import { Dot, Tag } from './visuals'
+import { SkillIcon } from './skill-icons'
+import { Tag } from './visuals'
 
 /**
  * `git log --graph` as a deck.
@@ -577,9 +578,12 @@ function Card({ commit, focused }: { commit: Commit; focused: boolean }) {
           {[commit.where, commit.meta].filter(Boolean).join(' · ')}
         </span>
         {commit.stack?.length ? (
-          <span className="flex shrink-0 gap-1">
+          /* The stack, as the brand marks themselves rather than the colour
+             each one is drawn in: a row of dots said only "four things", and
+             the reader had to open the commit to learn which four. */
+          <span className="flex shrink-0 items-center gap-1.5">
             {commit.stack.slice(0, 4).map((tech) => (
-              <Dot key={tech} name={tech} />
+              <SkillIcon key={tech} name={tech} size="h-3 w-3" />
             ))}
           </span>
         ) : null}
