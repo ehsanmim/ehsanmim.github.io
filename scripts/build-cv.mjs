@@ -38,6 +38,13 @@ const INK = '#14181f'
 const DIM = '#626c7c'
 const LINE = '#e4e7ec'
 const ACCENT = '#0369a1'
+/* The skill pills. A tinted chip rather than a grey one: it ties the group of
+ * them to the accent the eyebrows and links already use, and stays legible
+ * printed in greyscale, where the fill drops to a light tone and the ink to a
+ * dark one. */
+const PILL_BG = '#eff5fa'
+const PILL_LINE = '#d8e6f1'
+const PILL_INK = '#1f3346'
 
 /* A4 in points, and the margin everything is measured from. */
 const W = 595.28
@@ -70,7 +77,9 @@ const CONTENT_W = W - M * 2
 const BOTTOM = H - M - 16
 
 const FONT_FILES = {
-  serif: 'InstrumentSerif-Regular.ttf',
+  // The site's display face, in its 72pt optical cut — the serif appears in
+  // the PDF only once, on the name at 29pt, which is display size.
+  serif: 'Newsreader72pt-Medium.ttf',
   sans: 'Inter-Regular.ttf',
   'sans-md': 'Inter-Medium.ttf',
   'sans-sb': 'Inter-SemiBold.ttf',
@@ -185,10 +194,10 @@ function build(lang, d = 1) {
    * text exactly as it does on the page.
    */
   const head = (label, first = false) => {
-    if (!first) col.y += g(15)
+    if (!first) col.y += g(24)
     // The heading and whatever follows it are reserved together: a section
     // title stranded at the foot of a page is worse than a short page.
-    ensure(col, g(18) + 30)
+    ensure(col, g(20) + 34)
     at(col)
     open()
     // The heading is tagged with the word as it reads, not as it is set: the
@@ -201,7 +210,7 @@ function build(lang, d = 1) {
         lineBreak: false,
       })
     })
-    col.y += g(10)
+    col.y += g(11)
     doc.markContent('Artifact')
     doc
       .moveTo(col.x, col.y)
@@ -210,7 +219,7 @@ function build(lang, d = 1) {
       .strokeColor(LINE)
       .stroke()
     doc.endMarkedContent()
-    col.y += g(8)
+    col.y += g(11)
   }
 
   /** A bullet: an accent tick in the margin, the text hung off it. */
@@ -245,6 +254,88 @@ function build(lang, d = 1) {
     )
     li.end()
     col.y += h + g(2.6)
+  }
+
+  /**
+   * A run of skills set as pills — a rounded chip per name, greedily wrapped
+   * across the measure.
+   *
+   * The chips are drawn as artifacts and the names as list items, so an
+   * extractor is handed the same left-to-right, top-to-bottom sequence the eye
+   * reads, one skill per item, with no chrome mixed into the text. A pill is
+   * never split across a page: rows are reserved whole.
+   */
+  const PILL = { size: 8, padX: 7, padY: 4, gapX: 5, gapY: 5 }
+
+  /** Wraps `names` into rows of pills, and measures what that will cost. */
+  const pillRows = (col, names) => {
+    doc.font('sans-md').fontSize(PILL.size)
+    const h = doc.currentLineHeight() + PILL.padY * 2
+
+    // Greedy wrap. A name wider than the measure gets its own row rather than
+    // being broken — there is no such name here, but a future one would
+    // otherwise silently overhang the margin.
+    const rows = [[]]
+    let used = 0
+    for (const name of names) {
+      const w = Math.min(doc.widthOfString(name) + PILL.padX * 2, col.w)
+      if (used > 0 && used + PILL.gapX + w > col.w) {
+        rows.push([])
+        used = 0
+      }
+      rows[rows.length - 1].push({ name, w })
+      used += (used ? PILL.gapX : 0) + w
+    }
+    return { rows, h, total: rows.length * h + (rows.length - 1) * g(PILL.gapY) }
+  }
+
+  /**
+   * Draws a measured run of pills.
+   *
+   * The chips are drawn as artifacts and the names as list items, so an
+   * extractor is handed the same left-to-right, top-to-bottom sequence the eye
+   * reads, one skill per item, with no chrome mixed into the text. A pill is
+   * never split across a page: rows are reserved whole.
+   */
+  const pills = (col, { rows, h }) => {
+    const list = doc.struct('L')
+    parent.add(list)
+    for (const [i, row] of rows.entries()) {
+      ensure(col, h)
+      at(col)
+      let x = col.x
+      for (const pill of row) {
+        // Chrome first, and outside the structure element: pdfkit wraps a
+        // struct's draw in its own marked content, and a second marking nested
+        // inside it closes the wrong one.
+        doc.markContent('Artifact')
+        doc
+          .roundedRect(x, col.y, pill.w, h, h / 2)
+          .fillColor(PILL_BG)
+          .fill()
+        doc
+          .roundedRect(x + 0.25, col.y + 0.25, pill.w - 0.5, h - 0.5, h / 2)
+          .lineWidth(0.5)
+          .strokeColor(PILL_LINE)
+          .stroke()
+        doc.endMarkedContent()
+
+        const li = doc.struct('LI')
+        list.add(li)
+        const tx = x + PILL.padX
+        const ty = col.y + PILL.padY
+        li.add(
+          doc.struct('LBody', {}, () => {
+            doc.font('sans-md').fontSize(PILL.size).fillColor(PILL_INK)
+            doc.text(pill.name, tx, ty, { width: pill.w - PILL.padX * 2, lineBreak: false })
+          }),
+        )
+        li.end()
+        x += pill.w + PILL.gapX
+      }
+      col.y += h + (i < rows.length - 1 ? g(PILL.gapY) : 0)
+    }
+    list.end()
   }
 
   /* ── Header ──────────────────────────────────────────────────────────── */
@@ -368,19 +459,23 @@ function build(lang, d = 1) {
   /* ── Skills ──────────────────────────────────────────────────────────── */
   head(t(ui.sections.skills))
   skills.forEach((group, i) => {
-    if (i > 0) col.y += g(5)
-    ensure(col, 24)
-    // One run per group, not one line per skill. A keyword matcher wants the
-    // names in a row, and the row costs a fifth of the height the list did.
-    const names = group.items.map((sk) => (sk.label ? t(sk.label) : sk.name)).join(' · ')
+    if (i > 0) col.y += g(11)
+    const laid = pillRows(col, group.items.map((sk) => (sk.label ? t(sk.label) : sk.name)))
+    // A group moves to the next page whole rather than leaving one stray row
+    // of pills behind it — 'DevOps' heading a page it has already left is the
+    // one break that reads as a mistake. Only where a page could hold the
+    // group at all; a group taller than that falls back to reserving its label
+    // and first row, which is the most that can be promised.
+    const block = 14 + g(5) + laid.total
+    ensure(col, Math.min(block, BOTTOM - M))
     write(col, t(group.group), {
       font: 'sans-sb',
-      size: 8.4,
+      size: 8.6,
       color: INK,
       lineBreak: false,
-      gap: 2,
+      gap: 5,
     })
-    write(col, names, { font: 'sans', size: 8.4, color: DIM, lineGap: 1.6 })
+    pills(col, laid)
   })
 
   /* ── Languages ───────────────────────────────────────────────────────── */
@@ -479,21 +574,21 @@ function build(lang, d = 1) {
 }
 
 /**
- * Lays the CV out at its natural spacing, and only tightens if that would
- * spill a mostly empty extra page. A CV with enough on it to genuinely fill
- * two pages keeps the roomier setting; this one, a line or two over, comes
- * back to one.
+ * Spacing is chosen, not fixed.
+ *
+ * `d` scales every gap and never a font size, so both directions stay legible:
+ * tightening makes the page denser, loosening makes it airier, and the type is
+ * the same size either way.
+ *
+ * A CV a line or two over one page should come back onto it, so the tight
+ * settings are tried first. But a CV that genuinely needs a second page — this
+ * one does, once the skills are set as pills — should use it: laid out at 1.0
+ * it left the last page two-thirds empty, which reads as an accident. So when
+ * one page is out of reach, the layout expands into the room it has already
+ * taken rather than huddling at the top of it.
  */
-const DENSITIES = [1, 0.94, 0.88, 0.82]
-
-/** The loosest spacing at which this language still fits on one page. */
-function fits(lang) {
-  for (const d of DENSITIES) {
-    if (build(lang, d).pages === 1) return d
-  }
-  // Genuinely more than a page of content: lay it out roomily and let it run.
-  return 1
-}
+const TIGHT = [1, 0.94, 0.88, 0.82]
+const LOOSE = [1.3, 1.2, 1.1, 1]
 
 await mkdir(OUT, { recursive: true })
 
@@ -501,9 +596,20 @@ const LANGS = ['de', 'en']
 
 // One density for both documents. German runs about a tenth longer than the
 // same text in English, and letting each language pick its own spacing would
-// leave the pair visibly different — the same CV, set two ways.
-const density = Math.min(...LANGS.map(fits))
-if (density < 1) console.log(`cv: spacing tightened to ${Math.round(density * 100)}% to hold one page`)
+// leave the pair visibly different — the same CV, set two ways. So every
+// candidate is judged on the language that fits it worst.
+const pagesAt = (d) => Math.max(...LANGS.map((lang) => build(lang, d).pages))
+
+const natural = pagesAt(1)
+const candidates = natural === 1 ? TIGHT : LOOSE
+const target = natural === 1 ? 1 : natural
+const density = candidates.find((d) => pagesAt(d) <= target) ?? 1
+
+if (density !== 1) {
+  const pct = Math.round(density * 100)
+  const how = density < 1 ? `tightened to ${pct}%` : `opened up to ${pct}%`
+  console.log(`cv: spacing ${how} for ${target} page${target > 1 ? 's' : ''}`)
+}
 
 for (const lang of LANGS) {
   const { doc, pages } = build(lang, density)
