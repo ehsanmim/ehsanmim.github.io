@@ -51,12 +51,12 @@ export function period(
 
 export const profile = {
   name: 'Ehsan Moradpour',
-  role: { de: 'Web-Entwickler', en: 'Web Developer' } satisfies T,
+  role: { de: 'Software Engineer', en: 'Software Engineer' } satisfies T,
   /* TODO: this is the one line that is mine rather than yours — change the
      wording if it is not how you would introduce yourself. */
   headline: {
-    de: ['Web-Entwickler', 'aus Dortmund,', 'der gerne erklärt.'],
-    en: ['Web developer', 'in Dortmund', 'who likes to explain.'],
+    de: ['Software Engineer', 'aus Dortmund,', 'der gerne erklärt.'],
+    en: ['Software Engineer', 'in Dortmund', 'who likes to explain.'],
   } satisfies Record<Lang, string[]>,
   /* The first line a reader sees, so it leads with the years and the
      specialism rather than the employers. The seven years match the 2019 in
@@ -66,8 +66,8 @@ export const profile = {
      engineering": the latter reads as Spark/Airflow/dbt to anyone screening
      CVs and invites the wrong interview. */
   intro: {
-    de: 'Entwickler mit sieben Jahren Erfahrung: Backends, die Daten stufenweise verarbeiten, von Medien-Pipelines über Suchindexierung bis CI/CD. Versionskontrolle und Tests haben Vorrang, entwickelt wird testgetrieben. Mit KI im Alltag baue ich mehr Automatisierung, inklusive eigener MCP-Server. Seit 2023 Full-Stack-Entwickler bei hulle24, daneben das Studium der Angewandten Informatik, Abschluss 2026.',
-    en: 'Developer with seven years of experience building back ends that move data through stages, from media pipelines through search indexing to CI/CD. Version control and testing take priority, and I work test-driven. With AI in the mix I build more automation, my own MCP servers included. Full-stack developer at hulle24 since 2023, applied computer science alongside it, finishing 2026.',
+    de: 'Software Engineer mit sieben Jahren Erfahrung: Backends, die Daten stufenweise verarbeiten, von Medien-Pipelines über Suchindexierung bis CI/CD. Versionskontrolle und Tests haben Vorrang, entwickelt wird testgetrieben. Mit KI im Alltag baue ich mehr Automatisierung, inklusive eigener MCP-Server. Seit 2023 Full-Stack-Entwickler bei hulle24, im September 2026 Abschluss als B.Sc. in Angewandter Informatik.',
+    en: 'Software engineer with seven years of experience building back ends that move data through stages, from media pipelines through search indexing to CI/CD. Version control and testing take priority, and I work test-driven. With AI in the mix I build more automation, my own MCP servers included. Full-stack developer at hulle24 since 2023, with a B.Sc. in applied computer science completed in September 2026.',
   } satisfies T,
   location: { de: 'Dortmund, Deutschland', en: 'Dortmund, Germany' } satisfies T,
   availability: {
@@ -96,24 +96,6 @@ export const profile = {
       } satisfies T,
     },
   ],
-}
-
-export const about = {
-  eyebrow: { de: 'Über mich', en: 'About' } satisfies T,
-  heading: {
-    de: 'Planung ist der halbe Weg.',
-    en: 'Planning is half the work.',
-  } satisfies T,
-  body: {
-    de: [
-      'Heute arbeite ich als Full-Stack-Entwickler bei hulle24. Davor: die IT-Abteilung der National Iranian Gas Company, freiberufliche Projekte über Parscoders, und über Jahre Programmier- und Englischnachhilfe für Gruppen und Einzelpersonen.',
-      'Seit Oktober 2022 studiere ich Angewandte Informatik, Abschluss im September 2026. Die Ecke, in der Technik, Prozesse und Software zusammenkommen, ist genau die, in der ich arbeiten will.',
-    ],
-    en: [
-      'Today I work as a full-stack developer at hulle24. Before that: the IT department of the National Iranian Gas Company, freelance projects through Parscoders, and years of coding and English tuition for groups and individuals.',
-      'Since October 2022 I have been studying applied computer science, finishing in September 2026. The corner where engineering, process and software meet is exactly where I want to work.',
-    ],
-  } satisfies TList,
 }
 
 /**
@@ -426,7 +408,6 @@ export const ui = {
 
 /** Projects only earns a nav entry once there is something in it. */
 export const nav: { id: string; label: T }[] = [
-  { id: 'about', label: { de: 'Über mich', en: 'About' } },
   { id: 'experience', label: ui.sections.experience },
   { id: 'skills', label: ui.sections.skills },
   ...(projects.length ? [{ id: 'projects', label: ui.sections.projects }] : []),

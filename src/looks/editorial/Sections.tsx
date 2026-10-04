@@ -1,5 +1,4 @@
 import {
-  about,
   contact,
   education,
   experience,
@@ -148,45 +147,6 @@ export function Hero() {
   )
 }
 
-/* ── about ────────────────────────────────────────────────────────────────── */
-
-export function About() {
-  const { t } = useLang()
-  const [lede, ...rest] = t(about.body)
-
-  return (
-    <Section id="about" n="01" label={t(about.eyebrow)} heading={t(about.heading)}>
-      <Reveal>
-        {/* A pull-lede in display type, then the body at reading size. The
-            first paragraph is the one that gets read; it is set like it. */}
-        <p className="display display-lg max-w-2xl text-[1.5rem] text-text sm:text-[1.75rem]">
-          {lede}
-        </p>
-        {rest.length > 0 && (
-          <div className="mt-6 max-w-2xl space-y-4 text-[1rem] leading-[1.7] text-dim">
-            {rest.map((para) => (
-              <p key={para.slice(0, 24)}>{para}</p>
-            ))}
-          </div>
-        )}
-        <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2">
-          {profile.links.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              target="_blank"
-              rel="noreferrer"
-              className="link-underline meta text-p-ink"
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
-      </Reveal>
-    </Section>
-  )
-}
-
 /* ── experience: the history as a commit graph ────────────────────────────── */
 
 /** The graph's own lane colours, for the legend that stands above it, and the
@@ -247,7 +207,7 @@ export function Experience() {
     <>
       <div className="grid gap-2 md:grid-cols-[7rem_1fr] md:gap-8">
         <div className="eyebrow flex items-center gap-2 text-dim md:pt-2.5">
-          <span className="text-p-ink">02</span>
+          <span className="text-p-ink">01</span>
           <span aria-hidden="true" className="h-px w-4 bg-line md:hidden" />
           <span>{t(ui.sections.experience)}</span>
         </div>
@@ -311,7 +271,7 @@ export function Skills() {
   return (
     <Section
       id="skills"
-      n="03"
+      n="02"
       label={t(ui.sections.skills)}
       heading={t(ui.sections.skillsHeading)}
     >
@@ -376,7 +336,7 @@ export function Projects() {
   return (
     <Section
       id="projects"
-      n="04"
+      n="03"
       label={t(ui.sections.projects)}
       heading={t(ui.sections.projectsHeading)}
     >
@@ -423,7 +383,7 @@ export function Contact() {
   return (
     <Section
       id="contact"
-      n={projects.length ? '05' : '04'}
+      n={projects.length ? '04' : '03'}
       label={t(contact.eyebrow)}
       heading={t(contact.heading)}
     >

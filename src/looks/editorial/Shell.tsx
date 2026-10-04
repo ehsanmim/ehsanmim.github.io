@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { about, contact, profile, projects, ui } from '../../content/site'
+import { contact, profile, projects, ui } from '../../content/site'
 import { useActiveSection, useHashScroll } from '../../lib/hooks'
 import { useLang } from '../../lib/lang-context'
 import { useTheme } from '../../lib/theme'
 import { LangControl, ThemeControl } from './Controls'
 import { Logo } from './Logo'
-import { About, Contact, Experience, Footer, Hero, Projects, Skills } from './Sections'
+import { Contact, Experience, Footer, Hero, Projects, Skills } from './Sections'
 
 /**
  * The masthead and the section index.
@@ -23,7 +23,6 @@ export function Shell() {
   const entries = useMemo(
     () => [
       { id: 'top', label: t(ui.tabs.start) },
-      { id: 'about', label: t(about.eyebrow) },
       { id: 'experience', label: t(ui.sections.experience) },
       { id: 'skills', label: t(ui.sections.skills) },
       ...(projects.length ? [{ id: 'projects', label: t(ui.sections.projects) }] : []),
@@ -123,7 +122,6 @@ export function Shell() {
 
       <main className="mx-auto max-w-4xl">
         <Hero />
-        <About />
         <Experience />
         <Skills />
         {projects.length > 0 && <Projects />}

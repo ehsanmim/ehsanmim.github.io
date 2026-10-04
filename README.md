@@ -1,9 +1,9 @@
 # Ehsan Moradpour
 
-Web developer in Dortmund. I build back ends that move data through stages —
-media pipelines, search indexing, CI/CD — and I work test-driven. Full-stack
-developer at hulle24 since 2023, alongside a B.Sc. in applied computer science
-(finishing 2026).
+Software Engineer in Dortmund. I build back ends that move data through
+stages — media pipelines, search indexing, CI/CD — and I work test-driven.
+Full-stack developer at hulle24 since 2023, with a B.Sc. in applied computer
+science completed in September 2026.
 
 **Site:** <https://ehsanmim.github.io>
 
