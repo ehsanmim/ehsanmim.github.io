@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# Ehsan Moradpour
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Web developer in Dortmund. I build back ends that move data through stages —
+media pipelines, search indexing, CI/CD — and I work test-driven. Full-stack
+developer at hulle24 since 2023, alongside a B.Sc. in applied computer science
+(finishing 2026).
 
-Currently, two official plugins are available:
+**Site:** <https://ehsanmim.github.io>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This repo is that site: one page, in German and English, with my work history
+drawn as a `git log`-style commit graph.
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+React 19, TypeScript, Vite and Tailwind CSS 4. Linted with Oxlint.
 
-## Expanding the Oxlint configuration
+## Working on it
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+pnpm install
+pnpm dev      # dev server with HMR
+pnpm build    # type-check and build into dist/
+pnpm lint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Where things are
+
+- `src/content/site.ts` — every word on the page, as `{ de, en }` pairs.
+  Edit this to change the content; the sections build themselves from it.
+- `src/looks/editorial/` — the layout: masthead, sections and the commit graph.
+- `src/lib/` — language, theme and scroll hooks.
+
+## Deploy
+
+Every push to `main` builds the site and publishes `dist/` to GitHub Pages
+(`.github/workflows/deploy.yml`).
