@@ -9,12 +9,12 @@ import {
   projects,
   skills,
   ui,
-} from '../../content/resume'
+} from '../../content/site'
 import { useState, type ReactNode } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
 import { CommitGraph, type Commit, type Lane } from './CommitGraph'
-import { Dot, Points, Tag } from './visuals'
+import { Dot, Tag } from './visuals'
 
 /* ── the editorial furniture ──────────────────────────────────────────────── */
 
@@ -37,9 +37,9 @@ function Section({
   children: ReactNode
 }) {
   return (
-    <section id={id} className="px-5 pt-8 pb-14 sm:px-8">
+    <section id={id} className="px-5 pt-4 pb-8 sm:px-8 sm:pt-8 sm:pb-14">
       <Reveal>
-        <header className="mb-8">
+        <header className="mb-6 sm:mb-8">
           <div className="grid gap-2 md:grid-cols-[7rem_1fr] md:gap-8">
             <div className="eyebrow flex items-center gap-2 text-dim md:pt-2.5">
               <span className="text-p-ink">{n}</span>
@@ -48,7 +48,7 @@ function Section({
             </div>
             <h2 className="display display-lg text-[2rem] text-text sm:text-[2.5rem]">{heading}</h2>
           </div>
-          <div className="rule mt-6" />
+          <div className="rule mt-4 sm:mt-6" />
         </header>
       </Reveal>
       <div className="md:grid md:grid-cols-[7rem_1fr] md:gap-8">
@@ -65,7 +65,7 @@ export function Hero() {
   const { t } = useLang()
 
   return (
-    <div id="top" className="px-5 pt-10 pb-14 sm:px-8 sm:pt-14">
+    <div id="top" className="px-5 pt-10 pb-8 sm:px-8 sm:pt-14 sm:pb-14">
       <Reveal>
         <p className="eyebrow flex items-center gap-3 text-dim">
           <span className="relative inline-flex h-1.5 w-1.5">
@@ -122,7 +122,7 @@ export function Hero() {
         </div>
       </Reveal>
 
-      {/* The two figures the CV actually carries, set as a masthead strip. */}
+      {/* The two figures worth a glance, set as a masthead strip. */}
       <Reveal delay={240}>
         <dl className="mt-12 grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
           {profile.facts.map((fact) => (
@@ -214,9 +214,7 @@ export function Experience() {
       title: t(job.role),
       where: job.company,
       meta: t(job.location),
-      stack: job.stack,
       head: job.end === null,
-      body: t(job.bullets).length > 0 ? <Points lines={t(job.bullets)} /> : undefined,
     })),
     ...education.map((e) => ({
       id: `edu-${e.what.de}`,
@@ -261,7 +259,7 @@ export function Experience() {
       {/* A legend, because the lanes are one thing a reader will not infer —
           and, since it already names the branches, the place to solo one.
           Each branch name is printed in its own lane's colour. */}
-      <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+      <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 md:pl-[9rem]">
         {BRANCHES.map(({ name, lane, color }) => {
           const on = solo === lane
           // Hollow only when another branch is soloed: with nothing soloed the
@@ -273,14 +271,7 @@ export function Experience() {
                 type="button"
                 aria-pressed={on}
                 title={t(on ? ui.soloOff : ui.soloOn)}
-                onClick={() => {
-                  setSolo(on ? null : lane)
-                  // The track shrinks under the reader when a branch drops out
-                  // of it. Back to the top of the section, so the deck reopens
-                  // at the newest commit rather than wherever the old scroll
-                  // position happens to land in the shorter one.
-                  document.getElementById('experience')?.scrollIntoView()
-                }}
+                onClick={() => setSolo(on ? null : lane)}
                 className={`meta flex cursor-pointer items-center gap-2 text-dim outline-none transition-opacity hover:opacity-100 focus-visible:underline ${
                   off ? 'opacity-40' : 'opacity-100'
                 }`}
@@ -303,8 +294,8 @@ export function Experience() {
     </>
   )
 
-  // No <Section> wrapper: the heading, the legend and the deck are pinned
-  // together as one screen, so they have to live inside the graph's own track.
+  // No <Section> wrapper: the legend sits between the heading and the graph,
+  // which the shared header has no slot for.
   return (
     <section id="experience" className="px-5 sm:px-8">
       <CommitGraph key={solo ?? 'all'} commits={shown} header={legend} />

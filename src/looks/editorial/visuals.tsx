@@ -32,20 +32,3 @@ export function Tag({ name, label }: { name: string; label?: string }) {
     </span>
   )
 }
-
-/**
- * Bullet points, set as an indented list under a hairline rather than with
- * disc markers — the rule does the work the bullets were doing and keeps the
- * text aligned with everything else in the column.
- */
-export function Points({ lines }: { lines: string[] }) {
-  return (
-    <ul className="space-y-2 border-l border-line pl-4">
-      {lines.map((line) => (
-        <li key={line.slice(0, 32)} className="text-[0.875rem] leading-relaxed text-dim">
-          {line}
-        </li>
-      ))}
-    </ul>
-  )
-}

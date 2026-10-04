@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { Lang } from '../content/resume'
+import type { Lang } from '../content/site'
 import { LangContext, type LangCtx } from './lang-context'
 
 const STORAGE_KEY = 'lang'
 const DEFAULT: Lang = 'de'
 
 /** A stored choice wins; otherwise German, regardless of the browser locale —
- *  this is a German-first CV, not a locale-detecting app. */
+ *  this is a German-first site, not a locale-detecting app. */
 function initial(): Lang {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)

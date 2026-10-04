@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Lang } from '../content/resume'
+import type { Lang } from '../content/site'
 
 export type LangCtx = {
   lang: Lang

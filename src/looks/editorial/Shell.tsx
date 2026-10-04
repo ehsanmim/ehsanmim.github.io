@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { about, contact, cv, cvHref, profile, projects, ui } from '../../content/resume'
+import { about, contact, profile, projects, ui } from '../../content/site'
 import { useActiveSection, useHashScroll } from '../../lib/hooks'
 import { useLang } from '../../lib/lang-context'
 import { useTheme } from '../../lib/theme'
-import { CvControl, LangControl, ThemeControl } from './Controls'
+import { LangControl, ThemeControl } from './Controls'
 import { Logo } from './Logo'
 import { About, Contact, Experience, Footer, Hero, Projects, Skills } from './Sections'
 
@@ -70,8 +70,8 @@ export function Shell() {
               onClick={() => go('top')}
               className="flex min-w-0 items-center gap-3 text-left"
             >
-              {/* The mark in place of a photograph — the CV supplies no
-                  portrait, and a generic avatar would say less than nothing.
+              {/* The mark in place of a photograph — a generic avatar would
+                  say less than nothing.
                   The tile is the ink of the page inverted, so it reads as a
                   stamp rather than as one more bordered chip in the row. */}
               <Logo className="h-9 w-9 shrink-0 rounded-[10px] bg-text text-bg" />
@@ -83,17 +83,7 @@ export function Shell() {
               </span>
             </button>
 
-            {/* The CV sits first in the cluster and is the only control here
-                carrying a word: it is the one thing a visitor came to take
-                away, and the theme and language buttons are settings. */}
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <CvControl
-                href={cvHref(lang)}
-                file={cv.file[lang]}
-                label={t(ui.cv.label)}
-                view={t(ui.cv.view)}
-                download={t(ui.cv.download)}
-              />
               <ThemeControl theme={theme} toggle={toggleTheme} label={t(ui.themeLabel)} />
               <LangControl lang={lang} toggle={toggle} label={t(ui.langLabel)} />
             </div>

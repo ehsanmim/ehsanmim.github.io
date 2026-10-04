@@ -1,8 +1,9 @@
 /* ─────────────────────────────────────────────────────────────────────────────
- * Content — taken from Lebenslauf (18).pdf, 2026-08-25.
+ * Content for the site.
  *
- * Facts here are real. Where the CV said nothing (per-job tech stacks, personal
- * projects) the field is empty rather than filled with a guess — see the TODOs.
+ * Facts here are real. Where there is nothing to say yet (per-job tech stacks,
+ * personal projects) the field is empty rather than filled with a guess — see
+ * the TODOs.
  * Every visible string is a { de, en } pair. German is the default language.
  * ────────────────────────────────────────────────────────────────────────── */
 
@@ -51,16 +52,15 @@ export function period(
 export const profile = {
   name: 'Ehsan Moradpour',
   role: { de: 'Web-Entwickler', en: 'Web Developer' } satisfies T,
-  /* TODO: this is the one line that is mine rather than the CV's — change the
+  /* TODO: this is the one line that is mine rather than yours — change the
      wording if it is not how you would introduce yourself. */
   headline: {
     de: ['Web-Entwickler', 'aus Dortmund,', 'der gerne erklärt.'],
     en: ['Web developer', 'in Dortmund', 'who likes to explain.'],
   } satisfies Record<Lang, string[]>,
-  /* The first line a recruiter reads, so it leads with the years and the
-     specialism rather than the employers: the employers are three centimetres
-     below it either way. The seven years match
-     the 2019 in `facts`.
+  /* The first line a reader sees, so it leads with the years and the
+     specialism rather than the employers. The seven years match the 2019 in
+     `facts`.
 
      "Pipelines and process automation", deliberately, and never "data
      engineering": the latter reads as Spark/Airflow/dbt to anyone screening
@@ -76,8 +76,8 @@ export const profile = {
   } satisfies T,
   email: 'ehsan.webent@gmail.com',
   /* Email is the only contact detail published. The other personal details the
-     Lebenslauf carries stay out of this file: a CV goes to one employer, a
-     public page is read by scrapers. */
+     personal details stay out of this file: a public page is read by
+     scrapers. */
   links: [
     { label: 'GitHub', href: 'https://github.com/ehsanmim' },
     // TODO: LinkedIn URL, if you have one.
@@ -116,6 +116,11 @@ export const about = {
   } satisfies TList,
 }
 
+/**
+ * A role: what, where and when, and nothing more. This is a portfolio, not a
+ * CV — the detail of each job stays in the CV, and the work worth showing goes
+ * under Projects.
+ */
 export type Job = {
   /** Null while the start date is unknown: the entry still lists, but it is
    *  left off the timeline rather than drawn at a guessed year. */
@@ -124,10 +129,6 @@ export type Job = {
   role: T
   company: string
   location: T
-  /** TODO: the CV names no per-job technologies. Fill these in and the
-   *  timeline, the tags and the colour dots all populate themselves. */
-  stack: string[]
-  bullets: TList
 }
 
 export const experience: Job[] = [
@@ -135,13 +136,11 @@ export const experience: Job[] = [
     start: '2023-01',
     end: null,
     role: {
-      de: 'Full-Stack-Entwickler E-Commerce (Teilzeit)',
-      en: 'E-commerce Full-Stack Developer (part-time)',
+      de: 'Full-Stack-Entwickler (Teilzeit)',
+      en: 'Full-Stack Developer (part-time)',
     },
     company: 'hulle24 GmbH',
     location: { de: 'Deutschland', en: 'Germany' },
-    stack: [],
-    bullets: { de: [], en: [] },
   },
   {
     start: '2020-01',
@@ -149,11 +148,6 @@ export const experience: Job[] = [
     role: { de: 'Freiberuflicher Entwickler', en: 'Freelance Developer' },
     company: 'Parscoders',
     location: { de: 'Remote', en: 'Remote' },
-    stack: [],
-    bullets: {
-      de: ['Webentwicklung.', 'Android-Anwendungsentwicklung.'],
-      en: ['Web development.', 'Android application development.'],
-    },
   },
   {
     start: '2019-07',
@@ -164,10 +158,6 @@ export const experience: Job[] = [
     },
     company: 'National Iranian Gas Company',
     location: { de: 'Iran', en: 'Iran' },
-    stack: [],
-    /* TODO: the CV gives no detail for this role — the most important gap to
-       fill, since it is the longest piece of development experience on here. */
-    bullets: { de: [], en: [] },
   },
   {
     start: '2019-03',
@@ -178,11 +168,6 @@ export const experience: Job[] = [
     },
     company: 'Toseye Fanavari Aria Kavosh',
     location: { de: 'Iran', en: 'Iran' },
-    stack: [],
-    bullets: {
-      de: ['Online- und Präsenzunterricht für Gruppen und Einzelpersonen.'],
-      en: ['Online and in-person teaching, for groups and individuals.'],
-    },
   },
 ]
 
@@ -199,8 +184,8 @@ export type Skill = {
    *  looked up by, and never translated: 'React' is 'React' in both. */
   name: string
   /** Only for the handful of skills whose *name* is a German phrase rather
-   *  than a product: without this they would print untranslated in the
-   *  English CV. */
+   *  than a product: without this they would print untranslated on the
+   *  English page. */
   label?: T
 }
 
@@ -335,7 +320,7 @@ export type Project = {
   href?: string
 }
 
-/* TODO: the CV lists no personal projects, and I will not invent any. Add real
+/* TODO: no personal projects yet, and I will not invent any. Add real
    ones here and the Projects section and its nav entry appear on their own. */
 export const projects: Project[] = []
 
@@ -389,32 +374,7 @@ export const education: {
     /* Off the chart: it pulled the axis back to 2014, squeezing every role
        into the right-hand third. Still listed under Ausbildung. */
     chart: false,
-    note: {
-      de: 'Schwerpunkt: Modellierung und Simulation mit Matlab',
-      en: 'Focus: modelling and simulation with Matlab',
-    },
-  },
-  {
-    start: '2010-09',
-    end: '2014-06',
-    what: {
-      de: 'Abitur in Mathematik & Physik (GPA 4/4)',
-      en: 'Abitur in mathematics & physics (GPA 4/4)',
-    },
-    where: 'Shohadaye-Enghelab-Gymnasium',
     note: { de: '', en: '' },
-    chart: false,
-  },
-  {
-    start: '2008-12',
-    end: '2013-09',
-    what: { de: 'Englischdiplom', en: 'English diploma' },
-    where: 'Iran Language Institute (ILI)',
-    note: {
-      de: 'Teilnahme an allen Kursstufen',
-      en: 'Completed every course level',
-    },
-    chart: false,
   },
 ]
 
@@ -428,34 +388,12 @@ export const contact = {
   cta: { de: 'E-Mail schreiben', en: 'Send an email' } satisfies T,
 }
 
-/**
- * The downloadable CV. `scripts/build-cv.mjs` renders one PDF per language
- * from this very module and writes it to `public/` under these names, so the
- * file a visitor downloads always matches the page they downloaded it from.
- * The German reader gets the German document; the English reader the English.
- */
-export const cv = {
-  file: {
-    de: 'Ehsan-Moradpour-Lebenslauf.pdf',
-    en: 'Ehsan-Moradpour-CV.pdf',
-  } satisfies T,
-  /** Names the document in the PDF's own metadata and the browser tab. */
-  docTitle: { de: 'Lebenslauf', en: 'CV' } satisfies T,
-  /** The PDF's opening section — the site says the same thing as a hero. */
-  summary: { de: 'Profil', en: 'Profile' } satisfies T,
-}
-
-/** '/Ehsan-Moradpour-Lebenslauf.pdf' — served straight from `public/`. */
-export function cvHref(lang: Lang): string {
-  return `/${cv.file[lang]}`
-}
-
 export const ui = {
   sections: {
     experience: { de: 'Erfahrung', en: 'Experience' } satisfies T,
     experienceHeading: {
-      de: 'Mein Werdegang.',
-      en: 'How I got here.',
+      de: 'Wo ich gearbeitet habe.',
+      en: 'Where I have worked.',
     } satisfies T,
     skills: { de: 'Kenntnisse', en: 'Skills' } satisfies T,
     skillsHeading: { de: 'Womit ich arbeite.', en: 'What I work with.' } satisfies T,
@@ -472,18 +410,9 @@ export const ui = {
   /** The hero's lede label and the two buttons under it. */
   hero: {
     mailCta: { de: 'Schreib mir', en: 'Get in touch' } satisfies T,
-    viewWork: { de: 'Werdegang ansehen', en: 'See the history' } satisfies T,
+    viewWork: { de: 'Erfahrung ansehen', en: 'See my experience' } satisfies T,
   },
   toTop: { de: 'Nach oben', en: 'Back to top' } satisfies T,
-  /** The masthead's CV control: one label, two actions. */
-  cv: {
-    label: { de: 'Lebenslauf', en: 'Résumé' } satisfies T,
-    view: { de: 'Lebenslauf ansehen (PDF)', en: 'View résumé (PDF)' } satisfies T,
-    download: {
-      de: 'Lebenslauf herunterladen (PDF)',
-      en: 'Download résumé (PDF)',
-    } satisfies T,
-  },
   menu: { de: 'Menü', en: 'Menu' } satisfies T,
   langLabel: { de: 'Sprache wechseln', en: 'Switch language' } satisfies T,
   themeLabel: { de: 'Ansicht wechseln', en: 'Switch theme' } satisfies T,
