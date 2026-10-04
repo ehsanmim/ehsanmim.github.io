@@ -38,6 +38,7 @@ import {
 import browserstackMark from '../../assets/browserstack.svg'
 import linuxMark from '../../assets/linux.svg'
 import twigMark from '../../assets/twig.png'
+import rustfsMark from '../../assets/rustfs.png'
 import zustandBear from '../../assets/zustand-bear.png'
 import { techColor } from './tech-colors'
 
@@ -103,6 +104,15 @@ function BrowserStackMark({ className }: { className?: string }) {
 }
 
 /**
+ * RustFS's R, from the mark RustFS publishes itself. Simple Icons carries a
+ * RustFS glyph, but it is the wordmark, which turns to mush at this size, so
+ * the square mark comes in as an image with its own blue instead.
+ */
+function RustfsMark({ className }: { className?: string }) {
+  return <img src={rustfsMark} alt="" className={className} />
+}
+
+/**
  * Zustand's bear, the head from the mark the docs site uses, kept as the
  * artwork it is — it is a drawing, not a glyph, so it comes in as an image
  * with its own colours rather than being tinted like the rest.
@@ -158,6 +168,7 @@ const ICONS: Record<string, ComponentType<{ className?: string }>> = {
   aws: AwsMark,
   gcp: SiGooglecloud,
   hetzner: SiHetzner,
+  rustfs: RustfsMark,
   selenium: SiSelenium,
   browserstack: BrowserStackMark,
   git: SiGit,

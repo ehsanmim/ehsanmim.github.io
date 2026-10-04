@@ -34,6 +34,7 @@ const TECH_COLORS: Record<string, string> = {
   mariadb: '#c0765a',
   'mysql / mariadb': '#00758f',
   'github actions': '#2088ff',
+  rustfs: '#0062ff',
   'ci/cd': '#8b949e',
   rest: '#8b949e',
   queues: '#8b949e',

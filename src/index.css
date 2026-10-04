@@ -254,6 +254,22 @@
     }
   }
 
+  /* A skill's level bar grows in from the left once its group is revealed. */
+  .skill-fill {
+    transform-origin: left center;
+    transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+  }
+
+  .js .reveal:not(.is-visible) .skill-fill {
+    transform: scaleX(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skill-fill {
+      transition: none;
+    }
+  }
+
   .scrollbar-none {
     scrollbar-width: none;
   }

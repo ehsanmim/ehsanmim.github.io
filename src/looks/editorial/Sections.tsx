@@ -14,7 +14,7 @@ import { useState, type ReactNode } from 'react'
 import { useLang } from '../../lib/lang-context'
 import { Reveal } from '../../lib/reveal'
 import { CommitGraph, type Commit, type Lane } from './CommitGraph'
-import { Dot, Tag } from './visuals'
+import { Dot, SkillPill, Tag } from './visuals'
 
 /* ── the editorial furniture ──────────────────────────────────────────────── */
 
@@ -326,11 +326,20 @@ export function Skills() {
             <h3 className="eyebrow text-dim">{t(group.group)}</h3>
             <div className="rule mt-3" />
             <ul className="mt-4 flex flex-wrap gap-2">
-              {group.items.map((item) => (
-                <li key={item.name}>
-                  <Tag name={item.name} label={item.label ? t(item.label) : undefined} />
-                </li>
-              ))}
+              {/* Strongest first. toSorted is stable, so equal levels keep the
+                  order the content file lists them in, and the principles —
+                  which carry no level — keep theirs entirely. */}
+              {group.items
+                .toSorted((a, b) => (b.level ?? 0) - (a.level ?? 0))
+                .map((item) => (
+                  <li key={item.name}>
+                    <SkillPill
+                      name={item.name}
+                      label={item.label ? t(item.label) : undefined}
+                      level={item.level}
+                    />
+                  </li>
+                ))}
             </ul>
           </Reveal>
         ))}

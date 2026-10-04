@@ -172,12 +172,8 @@ export const experience: Job[] = [
 ]
 
 /**
- * A skill.
- *
- * No rating: the CV's five filled dots are gone. A parser never read them —
- * they carry no keyword — and against a human they only ever cost something,
- * since a number you gave yourself is either a wound (a 3 beside a 5) or a
- * dare. What a skill is worth is settled by the bullet it appears in.
+ * A skill, with how well I can do it on a scale of 1 to 10 — drawn as the
+ * narrow bar under each pill, where there is a level to draw.
  */
 export type Skill = {
   /** The canonical name — the key the brand mark and the tech colour are
@@ -187,6 +183,9 @@ export type Skill = {
    *  than a product: without this they would print untranslated on the
    *  English page. */
   label?: T
+  /** 1–10. Left out for the principles, which are ways of working rather
+   *  than tools and do not rate on a scale. */
+  level?: number
 }
 
 /**
@@ -199,71 +198,67 @@ export const skills: { group: T; items: Skill[] }[] = [
   {
     group: { de: 'Backend', en: 'Backend' },
     items: [
-      { name: 'PHP' },
-      { name: 'Laravel' },
-      { name: 'Node.js' },
-      { name: 'Bun' },
-      { name: 'Python' },
-      { name: 'FastAPI' },
-      { name: 'Flask' },
-      { name: 'Go' },
-      { name: 'Echo' },
-      { name: 'Laravel Reverb' },
+      { name: 'PHP', level: 8 },
+      { name: 'Laravel', level: 9 },
+      { name: 'Node.js', level: 6 },
+      { name: 'Bun', level: 5 },
+      { name: 'Python', level: 6 },
+      { name: 'FastAPI', level: 5 },
+      { name: 'Flask', level: 5 },
+      { name: 'Go', level: 4 },
+      { name: 'Echo', level: 4 },
+      { name: 'Laravel Reverb', level: 6 },
     ],
   },
   {
     group: { de: 'Frontend', en: 'Frontend' },
     items: [
-      { name: 'TypeScript' },
-      { name: 'JavaScript' },
-      { name: 'React' },
-      { name: 'React Router' },
-      { name: 'Vue' },
-      { name: 'Alpine.js' },
-      { name: 'jQuery' },
-      { name: 'Vite' },
-      { name: 'Inertia.js' },
-      { name: 'Zustand' },
+      { name: 'TypeScript', level: 7 },
+      { name: 'JavaScript', level: 8 },
+      { name: 'React', level: 9 },
+      { name: 'React Router', level: 7 },
+      { name: 'Vue', level: 5 },
+      { name: 'Alpine.js', level: 6 },
+      { name: 'jQuery', level: 7 },
+      { name: 'Vite', level: 7 },
+      { name: 'Inertia.js', level: 7 },
+      { name: 'Zustand', level: 6 },
+      { name: 'HTML', level: 9 },
+      { name: 'CSS', level: 9 },
+      { name: 'Tailwind CSS', level: 9 },
+      { name: 'Bootstrap', level: 7 },
+      { name: 'Twig', level: 6 },
+      { name: 'Blade', level: 8 },
     ],
   },
   {
     group: { de: 'DevOps', en: 'DevOps' },
     items: [
-      { name: 'Linux' },
-      { name: 'Bash' },
-      { name: 'Docker' },
-      { name: 'Docker Compose' },
-      { name: 'Docker Swarm' },
-      { name: 'CI/CD' },
-      { name: 'AWS' },
-      { name: 'GCP' },
-      { name: 'Hetzner' },
-      { name: 'Selenium' },
-      { name: 'BrowserStack' },
-      { name: 'Git' },
-      { name: 'GitHub' },
-      { name: 'GitLab' },
-    ],
-  },
-  {
-    group: { de: 'Design', en: 'Design' },
-    items: [
-      { name: 'HTML' },
-      { name: 'CSS' },
-      { name: 'Tailwind CSS' },
-      { name: 'Bootstrap' },
-      { name: 'Twig' },
-      { name: 'Blade' },
+      { name: 'Linux', level: 7 },
+      { name: 'Bash', level: 6 },
+      { name: 'Docker', level: 8 },
+      { name: 'Docker Compose', level: 8 },
+      { name: 'Docker Swarm', level: 5 },
+      { name: 'CI/CD', level: 8 },
+      { name: 'AWS', level: 5 },
+      { name: 'GCP', level: 4 },
+      { name: 'Hetzner', level: 7 },
+      { name: 'RustFS', level: 7 },
+      { name: 'Selenium', level: 5 },
+      { name: 'BrowserStack', level: 6 },
+      { name: 'Git', level: 10 },
+      { name: 'GitHub', level: 10 },
+      { name: 'GitLab', level: 10 },
     ],
   },
   {
     group: { de: 'Datenbanken', en: 'Databases' },
     items: [
-      { name: 'MySQL' },
-      { name: 'MariaDB' },
-      { name: 'PostgreSQL' },
-      { name: 'SQLite' },
-      { name: 'Redis' },
+      { name: 'MySQL', level: 8 },
+      { name: 'MariaDB', level: 8 },
+      { name: 'PostgreSQL', level: 8 },
+      { name: 'SQLite', level: 6 },
+      { name: 'Redis', level: 6 },
     ],
   },
   {
